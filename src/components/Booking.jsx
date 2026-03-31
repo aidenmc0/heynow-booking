@@ -75,12 +75,6 @@ function isFullyBooked(key) {
   return ROOMS.every(r => r.bookedDates.includes(key));
 }
 
-// Is a date partially booked (some rooms booked)?
-function isPartiallyBooked(key) {
-  const booked = ROOMS.filter(r => r.bookedDates.includes(key)).length;
-  return booked > 0 && booked < ROOMS.length;
-}
-
 // Is a specific room available for entire range?
 function isRoomAvailableForRange(room, checkIn, checkOut) {
   if (!checkIn || !checkOut) return true;
@@ -137,9 +131,8 @@ function AvailabilityCalendar({ selectedRoomId, checkIn, checkOut, onSelectDate,
       // Single-room mode
       if (room.bookedDates.includes(key)) return "booked_full";
     } else {
-      // All-rooms mode
+      // All-rooms mode: ว่างถ้ามีห้องไหนสักห้องว่าง, เต็มถ้าทุกห้องเต็ม
       if (isFullyBooked(key)) return "booked_full";
-      if (isPartiallyBooked(key)) return "booked_partial";
     }
 
     if (key === checkIn)  return "checkin";
