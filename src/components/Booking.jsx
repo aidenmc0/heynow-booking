@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+const pad = (n) => String(n).padStart(2, "0");
 
 // ── Google Fonts ───────────────────────────────────────────────────────────────
 if (typeof document !== "undefined" && !document.querySelector("#hn-fonts")) {
@@ -51,7 +52,6 @@ const ROOMS = [
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-const pad = (n) => String(n).padStart(2, "0");
 const toKey = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAYS = ["Su","Mo","Tu","We","Th","Fr","Sa"];
