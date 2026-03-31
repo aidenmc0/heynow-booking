@@ -53,26 +53,41 @@ const toKey = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAYS = ["Su","Mo","Tu","We","Th","Fr","Sa"];
 
+// ★ จุดแก้ที่ 1: ครอบคลุมหลายปี (2020–2030) ไม่ใช่แค่ 2025
 function aprilExcept(freeDayNum) {
   const dates = [];
-  for (let d = 1; d <= 30; d++) {
-    if (d !== freeDayNum) dates.push(`2025-04-${pad(d)}`);
+  for (let y = 2020; y <= 2030; y++) {
+    for (let d = 1; d <= 30; d++) {
+      if (d !== freeDayNum) dates.push(`${y}-04-${pad(d)}`);
+    }
   }
   return dates;
 }
 
-// ★ จุดแก้ที่ 1: เพิ่ม helper สำหรับ +1 วัน
+// ★ จุดแก้ที่ 2: helper ตรวจห้องว่าง/เต็ม โดยดูเดือนด้วย — ไม่ใช่เม.ย = เต็มทุกห้อง
+function isRoomBookedOnDate(room, key) {
+  const month = parseInt(key.split('-')[1]);
+  if (month !== 4) return true;
+  return room.bookedDates.includes(key);
+}
+
 function nextDayKey(key) {
   const d = new Date(key + "T00:00:00");
   d.setDate(d.getDate() + 1);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+// ★ จุดแก้ที่ 3: ไม่ใช่เม.ย = ไม่มีห้องว่าง
 function roomsAvailableOnDate(key) {
+  const month = parseInt(key.split('-')[1]);
+  if (month !== 4) return [];
   return ROOMS.filter(r => !r.bookedDates.includes(key));
 }
 
+// ★ จุดแก้ที่ 4: ไม่ใช่เม.ย = fully booked
 function isFullyBooked(key) {
+  const month = parseInt(key.split('-')[1]);
+  if (month !== 4) return true;
   return ROOMS.every(r => r.bookedDates.includes(key));
 }
 
@@ -82,7 +97,7 @@ function isRoomAvailableForRange(room, checkIn, checkOut) {
   const end = new Date(checkOut + "T00:00:00");
   while (d < end) {
     const key = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-    if (room.bookedDates.includes(key)) return false;
+    if (isRoomBookedOnDate(room, key)) return false;
     d.setDate(d.getDate() + 1);
   }
   return true;
@@ -110,7 +125,8 @@ function AvailabilityCalendar({ selectedRoomId, checkIn, checkOut, onSelectDate,
     const midnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     if (date < midnight) return;
 
-    if (room && room.bookedDates.includes(key)) return;
+    // เปลี่ยนจาก room.bookedDates.includes → isRoomBookedOnDate
+    if (room && isRoomBookedOnDate(room, key)) return;
     if (!room && isFullyBooked(key)) return;
 
     onSelectDate(key);
@@ -124,7 +140,8 @@ function AvailabilityCalendar({ selectedRoomId, checkIn, checkOut, onSelectDate,
     if (date < midnight) return "past";
 
     if (room) {
-      if (room.bookedDates.includes(key)) return "booked_full";
+      // เปลี่ยนจาก room.bookedDates.includes → isRoomBookedOnDate
+      if (isRoomBookedOnDate(room, key)) return "booked_full";
     } else {
       if (isFullyBooked(key)) return "booked_full";
     }
@@ -334,8 +351,6 @@ export default function BookingRoom() {
   }, [checkIn, checkOut]);
   const total = room ? nights * room.price : 0;
 
-  // ★ จุดแก้ที่ 2: เมื่อไม่มี check-out ให้ถือว่าเช็คอิน 1 คืน (checkIn → checkIn+1)
-  // ถ้าไม่แก้ตรงนี้ → checkOut คือ checkIn เดียวกัน → loop ไม่ทำงาน → ทุกห้องว่าง
   const availableRooms = useMemo(() => {
     if (!checkIn) return ROOMS;
     const effectiveOut = checkOut || nextDayKey(checkIn);
@@ -350,12 +365,21 @@ export default function BookingRoom() {
       setCheckOut(null);
       if (selectedRoom) {
         const r = ROOMS.find(x => x.id === selectedRoom);
-        if (r?.bookedDates.includes(key)) setSelectedRoom(null);
+        // เปลี่ยนจาก r?.bookedDates.includes → isRoomBookedOnDate
+        if (r && isRoomBookedOnDate(r, key)) setSelectedRoom(null);
       }
     } else {
       if (key <= checkIn) { setCheckIn(key); setCheckOut(null); return; }
       if (room) {
-        const blocked = room.bookedDates.some(b => b > checkIn && b < key);
+        // เปลี่ยนจาก room.bookedDates.some → ใช้ loop + isRoomBookedOnDate
+        let d = new Date(checkIn + "T00:00:00");
+        const end = new Date(key + "T00:00:00");
+        let blocked = false;
+        while (d < end) {
+          const bk = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+          if (isRoomBookedOnDate(room, bk)) { blocked = true; break; }
+          d.setDate(d.getDate() + 1);
+        }
         if (blocked) { setCheckIn(key); setCheckOut(null); return; }
       }
       setCheckOut(key);
