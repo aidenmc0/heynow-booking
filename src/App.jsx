@@ -50,7 +50,7 @@ function AppContent() {
 function App() {
   return (
     <BrowserRouter>
-      <Analytics />
+      {/* <Analytics /> */}
       <LanguageProvider>
         <AppContent />
       </LanguageProvider>
