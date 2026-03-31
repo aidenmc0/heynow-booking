@@ -40,6 +40,7 @@ function AppContent() {
           }
         />
         <Route path="/rooms/:id" element={<RoomDetail />} />
+        <Route path="/booking" element={<BookingRoom />} />
       </Routes>
     </main>
   );
