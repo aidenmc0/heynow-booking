@@ -14,6 +14,7 @@ import RoomDetail from "./components/RoomDetail";
 import Layout from "./components/Layout";
 import ShowCalendar from "./components/ShowCalendar";
 import Restaurant from "./components/Restaurant";
+import BookingRoom from "./components/Booking"
 
 function AppContent() {
   const { lang } = useLanguage(); // ดึงภาษาปัจจุบัน
@@ -40,7 +41,7 @@ function AppContent() {
           }
         />
         <Route path="/rooms/:id" element={<RoomDetail />} />
-        <Route path="/booking" element={<BookingRoom />} />
+        <Route path="/booking" element={<BookingRoom/>} />
       </Routes>
     </main>
   );
