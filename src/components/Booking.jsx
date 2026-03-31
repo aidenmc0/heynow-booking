@@ -18,9 +18,6 @@ const C = {
 };
 
 // ── Room data ──────────────────────────────────────────────────────────────────
-// Lanna Suite  → free ONLY on Apr 1
-// Garden Villa → free ONLY on Apr 2
-// Mountain Retreat → free ONLY on Apr 3
 const ROOMS = [
   {
     id: "lanna-suite",
@@ -29,7 +26,7 @@ const ROOMS = [
     price: 4800, capacity: 2, size: 48, beds: "1 King",
     img: "https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=800&q=80",
     amenities: ["Private plunge pool", "Outdoor terrace", "Rain shower", "Minibar"],
-    bookedDates: aprilExcept(1), // free only Apr 1
+    bookedDates: aprilExcept(1),
   },
   {
     id: "garden-villa",
@@ -38,7 +35,7 @@ const ROOMS = [
     price: 3200, capacity: 3, size: 56, beds: "1 King + Daybed",
     img: "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&q=80",
     amenities: ["Private garden", "Outdoor bathtub", "Hammock", "Nespresso"],
-    bookedDates: aprilExcept(2), // free only Apr 2
+    bookedDates: aprilExcept(2),
   },
   {
     id: "mountain-retreat",
@@ -47,7 +44,7 @@ const ROOMS = [
     price: 2600, capacity: 2, size: 36, beds: "1 Queen",
     img: "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=800&q=80",
     amenities: ["Forest-view deck", "Outdoor shower", "Campfire kit", "Telescope"],
-    bookedDates: aprilExcept(3), // free only Apr 3
+    bookedDates: aprilExcept(3),
   },
 ];
 
@@ -56,7 +53,6 @@ const toKey = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAYS = ["Su","Mo","Tu","We","Th","Fr","Sa"];
 
-// Generate all April 2025 dates EXCEPT the one free day
 function aprilExcept(freeDayNum) {
   const dates = [];
   for (let d = 1; d <= 30; d++) {
@@ -65,21 +61,25 @@ function aprilExcept(freeDayNum) {
   return dates;
 }
 
-// For a given date key, how many rooms are available?
+// ★ จุดแก้ที่ 1: เพิ่ม helper สำหรับ +1 วัน
+function nextDayKey(key) {
+  const d = new Date(key + "T00:00:00");
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 function roomsAvailableOnDate(key) {
   return ROOMS.filter(r => !r.bookedDates.includes(key));
 }
 
-// Is a date fully booked (all rooms booked)?
 function isFullyBooked(key) {
   return ROOMS.every(r => r.bookedDates.includes(key));
 }
 
-// Is a specific room available for entire range?
 function isRoomAvailableForRange(room, checkIn, checkOut) {
   if (!checkIn || !checkOut) return true;
-  let d = new Date(checkIn);
-  const end = new Date(checkOut);
+  let d = new Date(checkIn + "T00:00:00");
+  const end = new Date(checkOut + "T00:00:00");
   while (d < end) {
     const key = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
     if (room.bookedDates.includes(key)) return false;
@@ -89,8 +89,6 @@ function isRoomAvailableForRange(room, checkIn, checkOut) {
 }
 
 // ── Unified Calendar ───────────────────────────────────────────────────────────
-// Shows availability across ALL rooms when no room selected,
-// or single-room availability when a room is selected.
 function AvailabilityCalendar({ selectedRoomId, checkIn, checkOut, onSelectDate, onClear }) {
   const today = new Date();
   const [view, setView] = useState({ year: today.getFullYear(), month: today.getMonth() });
@@ -112,9 +110,7 @@ function AvailabilityCalendar({ selectedRoomId, checkIn, checkOut, onSelectDate,
     const midnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     if (date < midnight) return;
 
-    // If room selected: block booked dates for that room
     if (room && room.bookedDates.includes(key)) return;
-    // If no room selected: block fully-booked dates
     if (!room && isFullyBooked(key)) return;
 
     onSelectDate(key);
@@ -128,10 +124,8 @@ function AvailabilityCalendar({ selectedRoomId, checkIn, checkOut, onSelectDate,
     if (date < midnight) return "past";
 
     if (room) {
-      // Single-room mode
       if (room.bookedDates.includes(key)) return "booked_full";
     } else {
-      // All-rooms mode: ว่างถ้ามีห้องไหนสักห้องว่าง, เต็มถ้าทุกห้องเต็ม
       if (isFullyBooked(key)) return "booked_full";
     }
 
@@ -141,7 +135,6 @@ function AvailabilityCalendar({ selectedRoomId, checkIn, checkOut, onSelectDate,
     return "available";
   }
 
-  // Count available rooms for a day (used in tooltip / badge)
   function availCount(d) {
     const key = toKey(view.year, view.month, d);
     return roomsAvailableOnDate(key).length;
@@ -163,7 +156,6 @@ function AvailabilityCalendar({ selectedRoomId, checkIn, checkOut, onSelectDate,
 
   return (
     <div>
-      {/* Month nav */}
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
         <button style={S.calNav} onClick={prevMonth}>‹</button>
         <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:19, fontWeight:400, color:C.bark }}>
@@ -172,14 +164,12 @@ function AvailabilityCalendar({ selectedRoomId, checkIn, checkOut, onSelectDate,
         <button style={S.calNav} onClick={nextMonth}>›</button>
       </div>
 
-      {/* Day-of-week labels */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3, marginBottom:2 }}>
         {DAYS.map(d => (
           <div key={d} style={{ fontSize:10, letterSpacing:1, textTransform:"uppercase", color:C.muted, textAlign:"center", paddingBottom:6 }}>{d}</div>
         ))}
       </div>
 
-      {/* Date grid */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3 }}>
         {cells.map((d, i) => {
           if (!d) return <div key={`e-${i}`} />;
@@ -203,14 +193,12 @@ function AvailabilityCalendar({ selectedRoomId, checkIn, checkOut, onSelectDate,
               onClick={() => handleDay(d)}
             >
               {d}
-              {/* Small availability dot for partial-booked (all-rooms mode) */}
               {st === "booked_partial" && (
                 <span style={{
                   position:"absolute", bottom:3, left:"50%", transform:"translateX(-50%)",
                   fontSize:8, color:"#c88860", lineHeight:1,
                 }}>●</span>
               )}
-              {/* Fully booked X mark */}
               {st === "booked_full" && (
                 <span style={{
                   position:"absolute", bottom:3, left:"50%", transform:"translateX(-50%)",
@@ -222,7 +210,6 @@ function AvailabilityCalendar({ selectedRoomId, checkIn, checkOut, onSelectDate,
         })}
       </div>
 
-      {/* Legend */}
       <div style={{ display:"flex", gap:12, marginTop:14, flexWrap:"wrap" }}>
         {[
           [C.cream,        C.sand,   "Available"],
@@ -237,7 +224,6 @@ function AvailabilityCalendar({ selectedRoomId, checkIn, checkOut, onSelectDate,
         ))}
       </div>
 
-      {/* Selected range display */}
       {(checkIn || checkOut) && (
         <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:16, flexWrap:"wrap" }}>
           <div style={{ flex:1, background:C.cream, border:`1.5px solid ${checkIn ? C.earth : C.sand}`, borderRadius:8, padding:"8px 12px", minWidth:100 }}>
@@ -286,15 +272,12 @@ function RoomCard({ room, selected, available, onSelect, nights }) {
       onMouseLeave={() => setHovered(false)}
     >
       <div style={{ display:"flex", gap:0 }}>
-        {/* Image */}
         <div style={{ width:130, flexShrink:0, overflow:"hidden" }}>
           <img
             src={room.img} alt={room.name}
             style={{ width:"100%", height:"100%", objectFit:"cover", display:"block", transition:"transform .4s", transform: hovered && available ? "scale(1.05)" : "scale(1)" }}
           />
         </div>
-
-        {/* Content */}
         <div style={{ padding:"14px 16px", flex:1 }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8, marginBottom:6 }}>
             <div>
@@ -306,13 +289,11 @@ function RoomCard({ room, selected, available, onSelect, nights }) {
               <span style={{ fontSize:11, color:C.muted, display:"block" }}>/night</span>
             </div>
           </div>
-
           <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
             {[`${room.size} m²`, room.beds, `Max ${room.capacity}`].map(m => (
               <span key={m} style={{ fontSize:11, color:C.muted, background:C.cream, border:`1px solid ${C.sand}`, padding:"2px 7px", borderRadius:4 }}>{m}</span>
             ))}
           </div>
-
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
               {room.amenities.slice(0,3).map(a => (
@@ -320,8 +301,6 @@ function RoomCard({ room, selected, available, onSelect, nights }) {
               ))}
               {room.amenities.length > 3 && <span style={{ fontSize:10, color:C.muted }}>+{room.amenities.length-3}</span>}
             </div>
-
-            {/* Status badge */}
             {selected ? (
               <span style={{ fontSize:11, background:C.earth, color:C.white, padding:"3px 10px", borderRadius:20, flexShrink:0, marginLeft:8 }}>✓ Selected</span>
             ) : !available ? (
@@ -342,7 +321,7 @@ export default function BookingRoom() {
   const [checkOut,      setCheckOut]      = useState(null);
   const [selectedRoom,  setSelectedRoom]  = useState(null);
   const [guests,        setGuests]        = useState(1);
-  const [step,          setStep]          = useState("select"); // select | confirm | done
+  const [step,          setStep]          = useState("select");
   const [name,          setName]          = useState("");
   const [email,         setEmail]         = useState("");
   const [phone,         setPhone]         = useState("");
@@ -355,33 +334,31 @@ export default function BookingRoom() {
   }, [checkIn, checkOut]);
   const total = room ? nights * room.price : 0;
 
-  // Which rooms are available for the selected range?
+  // ★ จุดแก้ที่ 2: เมื่อไม่มี check-out ให้ถือว่าเช็คอิน 1 คืน (checkIn → checkIn+1)
+  // ถ้าไม่แก้ตรงนี้ → checkOut คือ checkIn เดียวกัน → loop ไม่ทำงาน → ทุกห้องว่าง
   const availableRooms = useMemo(() => {
-    if (!checkIn) return ROOMS; // show all before date selection
-    return ROOMS.filter(r => isRoomAvailableForRange(r, checkIn, checkOut || checkIn));
+    if (!checkIn) return ROOMS;
+    const effectiveOut = checkOut || nextDayKey(checkIn);
+    return ROOMS.filter(r => isRoomAvailableForRange(r, checkIn, effectiveOut));
   }, [checkIn, checkOut]);
 
   const availableRoomIds = new Set(availableRooms.map(r => r.id));
 
   function handleDateSelect(key) {
-    // If room is selected, validate no conflict
     if (!checkIn || (checkIn && checkOut)) {
       setCheckIn(key);
       setCheckOut(null);
-      // If previously selected room not available on this date, clear it
       if (selectedRoom) {
         const r = ROOMS.find(x => x.id === selectedRoom);
         if (r?.bookedDates.includes(key)) setSelectedRoom(null);
       }
     } else {
       if (key <= checkIn) { setCheckIn(key); setCheckOut(null); return; }
-      // Check no booked dates for selected room in range
       if (room) {
         const blocked = room.bookedDates.some(b => b > checkIn && b < key);
         if (blocked) { setCheckIn(key); setCheckOut(null); return; }
       }
       setCheckOut(key);
-      // Deselect room if not available for new range
       if (selectedRoom && !isRoomAvailableForRange(room, checkIn, key)) {
         setSelectedRoom(null);
       }
@@ -435,7 +412,6 @@ export default function BookingRoom() {
             Complete Your <em>Reservation</em>
           </h1>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:40, alignItems:"start" }}>
-            {/* Summary */}
             <div style={{ background:C.white, borderRadius:12, border:`1.5px solid ${C.sand}`, overflow:"hidden" }}>
               <img src={room?.img} alt={room?.name} style={{ width:"100%", height:160, objectFit:"cover", display:"block" }} />
               <div style={{ padding:"16px 20px 20px" }}>
@@ -451,8 +427,6 @@ export default function BookingRoom() {
                 </div>
               </div>
             </div>
-
-            {/* Form */}
             <div>
               <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:20, fontWeight:400, color:C.bark, margin:"0 0 20px" }}>Guest Information</h3>
               {[
@@ -487,11 +461,8 @@ export default function BookingRoom() {
   }
 
   // ── SELECT (main, Calendar-first) ─────────────────────────────────────────
-  // Rooms to show: if date selected, show all but highlight unavailable ones
-  // If no date, show all
   const roomsToShow = ROOMS;
 
-  // Instruction text for calendar
   const calTitle = !checkIn
     ? "All rooms · Select your check-in date"
     : !checkOut
@@ -502,7 +473,6 @@ export default function BookingRoom() {
 
   return (
     <div style={S.root}>
-      {/* Hero */}
       <div style={{ position:"relative", height:280, overflow:"hidden", background:`url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1400&q=80') center/cover no-repeat` }}>
         <div style={{ position:"absolute", inset:0, background:"linear-gradient(to bottom,rgba(25,18,10,0.38) 0%,rgba(25,18,10,0.72) 100%)" }} />
         <div style={{ position:"relative", zIndex:1, padding:"52px 48px 0", maxWidth:880 }}>
@@ -514,10 +484,7 @@ export default function BookingRoom() {
         </div>
       </div>
 
-      {/* Body */}
       <div style={{ maxWidth:1160, margin:"0 auto", padding:"40px 24px 80px" }}>
-
-        {/* ── STEP HINT BAR ── */}
         <div style={{ display:"flex", alignItems:"center", gap:0, marginBottom:36 }}>
           {[
             { n:1, label:"Select dates", done: !!(checkIn && checkOut) },
@@ -541,13 +508,9 @@ export default function BookingRoom() {
           ))}
         </div>
 
-        {/* ── TWO-COLUMN LAYOUT ── */}
         <div style={{ display:"grid", gridTemplateColumns:"400px 1fr", gap:40, alignItems:"start" }}>
-
-          {/* LEFT — Calendar sticky */}
           <div style={{ position:"sticky", top:24 }}>
             <div style={S.widget}>
-              {/* Dynamic title */}
               <div style={{ marginBottom:16 }}>
                 <p style={{ ...S.widgetTitle, marginBottom:4 }}>{calTitle}</p>
                 {!checkIn && (
@@ -556,7 +519,6 @@ export default function BookingRoom() {
                   </p>
                 )}
               </div>
-
               <AvailabilityCalendar
                 selectedRoomId={selectedRoom}
                 checkIn={checkIn}
@@ -566,7 +528,6 @@ export default function BookingRoom() {
               />
             </div>
 
-            {/* Guests counter */}
             {checkIn && (
               <div style={{ ...S.widget, marginTop:14 }}>
                 <p style={S.widgetTitle}>Guests</p>
@@ -583,7 +544,6 @@ export default function BookingRoom() {
               </div>
             )}
 
-            {/* Price + CTA */}
             {canBook && (
               <div style={{ ...S.widget, marginTop:14 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", fontSize:14, color:C.muted, padding:"3px 0" }}>
@@ -616,20 +576,20 @@ export default function BookingRoom() {
             </button>
           </div>
 
-          {/* RIGHT — Rooms */}
           <div>
             <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", marginBottom:16 }}>
               <h2 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:26, fontWeight:400, color:C.bark, margin:0 }}>
                 {checkIn && checkOut
                   ? `${availableRooms.length} room${availableRooms.length!==1?"s":""} available`
-                  : "Our Accommodations"}
+                  : checkIn
+                    ? `${availableRooms.length} room${availableRooms.length!==1?"s":""} available for check-in`
+                    : "Our Accommodations"}
               </h2>
               {checkIn && checkOut && (
                 <span style={{ fontSize:12, color:C.muted }}>{checkIn} → {checkOut}</span>
               )}
             </div>
 
-            {/* Hint when no date yet */}
             {!checkIn && (
               <div style={{ background:C.white, border:`1.5px solid ${C.sand}`, borderRadius:10, padding:"14px 18px", marginBottom:20, display:"flex", gap:12, alignItems:"flex-start" }}>
                 <span style={{ fontSize:20, lineHeight:1 }}>📅</span>
@@ -642,7 +602,6 @@ export default function BookingRoom() {
               </div>
             )}
 
-            {/* Room cards */}
             <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
               {roomsToShow.map(r => (
                 <RoomCard
@@ -656,8 +615,7 @@ export default function BookingRoom() {
               ))}
             </div>
 
-            {/* No rooms available edge case */}
-            {checkIn && checkOut && availableRooms.length === 0 && (
+            {checkIn && availableRooms.length === 0 && (
               <div style={{ background:C.redLight, border:`1.5px solid ${C.redMid}`, borderRadius:10, padding:"16px 20px", marginTop:8, textAlign:"center" }}>
                 <p style={{ fontSize:14, color:C.red, margin:"0 0 4px", fontWeight:500 }}>No rooms available for these dates</p>
                 <p style={{ fontSize:13, color:"#a05050", margin:0 }}>Please select different dates on the calendar.</p>
@@ -667,7 +625,6 @@ export default function BookingRoom() {
         </div>
       </div>
 
-      {/* Footer */}
       <div style={{ borderTop:`1px solid ${C.sand}`, padding:"20px 48px", textAlign:"center", background:C.white }}>
         <p style={{ fontSize:13, color:C.muted, margin:"0 0 3px" }}>Hey Now Chiang Dao Stay · เชียงดาว, เชียงใหม่ · +66 8x xxx xxxx</p>
         <p style={{ fontSize:12, color:C.clay, margin:0 }}>For groups of 5+ or special requests, please contact us directly.</p>
