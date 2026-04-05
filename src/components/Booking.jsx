@@ -692,7 +692,7 @@ export default function BookingRoom() {
               <div style={{ background:C.white, border:`1.5px solid ${C.sand}`, borderRadius:10, padding:"14px 18px", marginBottom:20, display:"flex", gap:12, alignItems:"flex-start" }}>
                 <span style={{ fontSize:20, lineHeight:1 }}>📅</span>
                 <div>
-                  <p style={{ fontSize:14, color:C.bark, margin:"0 0 3px", fontWeight:500 }}>Start by selecting your dates</p>
+                  <p style={{ fontSize:14, color:C.bark, margin:"0 0 3px", fontWeight:500 }}>P nice krub eiei </p>
                   <p style={{ fontSize:13, color:C.muted, margin:0, lineHeight:1.5 }}>
                     Pick check-in &amp; check-out on the calendar — only rooms available for your entire stay will be shown as bookable.
                   </p>
