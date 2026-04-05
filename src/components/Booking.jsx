@@ -1,4 +1,6 @@
+import { useState, useMemo, useEffect } from "react";
 
+// ── Helper Functions & Constants ─────────────────────────────────────
 const pad = (n) => String(n).padStart(2, "0");
 const toKey = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
