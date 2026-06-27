@@ -1,931 +1,552 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useLanguage } from "../contexts/LanguageContext";
-import {
-  CalendarDays, MapPin, Users, CheckCircle, ChevronLeft, ChevronRight,
-  Minus, Plus, Phone, Mail, MessageSquare, Sun, Moon, Sparkles,
- Bed, Baby, Wifi, Coffee, Bath, ShieldCheck, Home, ArrowRight
-} from "lucide-react";
+import { useState, useMemo, useEffect, useRef } from "react";
 
+// ── Helpers ───────────────────────────────────────────────────────────
 const pad = (n) => String(n).padStart(2, "0");
 const toKey = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
-const MONTHS = {
-  en: ["January","February","March","April","May","June","July","August","September","October","November","December"],
-  th: ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"],
-  cn: ["一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"],
-};
-const DAYS = {
-  en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
-  th: ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"],
-  cn: ["日", "一", "二", "三", "四", "五", "六"],
-};
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DAYS = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+const parseDate = (key) => { if (!key) return null; const [y,m,d] = key.split('-').map(Number); return new Date(y, m-1, d); };
+const nightsBetween = (from, to) => { if (!from || !to) return 0; return Math.round((parseDate(to) - parseDate(from)) / 86400000); };
+const formatDate = (key) => { if (!key) return ""; const d = parseDate(key); return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0,3)} ${d.getFullYear()}`; };
+const formatTHB = (n) => `฿${n.toLocaleString('th-TH')}`;
+const genId = () => 'BK-' + Math.random().toString(36).slice(2,8).toUpperCase();
 
-const formatPrice = (n) => n.toLocaleString('th-TH');
-
-const parseDate = (key) => {
-  if (!key) return null;
-  const [y, m, d] = key.split('-').map(Number);
-  return new Date(y, m - 1, d);
+// ── Mock Booked Dates ─────────────────────────────────────────────────
+const genBooked = () => {
+  const s = new Set(); const t = new Date();
+  for (let i = 0; i < 90; i++) { if (Math.random() < 0.25) { const d = new Date(t); d.setDate(d.getDate()+i); s.add(toKey(d.getFullYear(), d.getMonth(), d.getDate())); } }
+  return [...s];
 };
 
-const nightsBetween = (from, to) => {
-  if (!from || !to) return 0;
-  const d1 = parseDate(from);
-  const d2 = parseDate(to);
-  return Math.round((d2 - d1) / 86400000);
-};
-
-const generateBookedDates = () => {
-  const dates = new Set();
-  const today = new Date();
-  for (let i = 0; i < 60; i++) {
-    if (Math.random() < 0.3) {
-      const d = new Date(today);
-      d.setDate(d.getDate() + i);
-      dates.add(toKey(d.getFullYear(), d.getMonth(), d.getDate()));
-    }
-  }
-  return Array.from(dates);
-};
-
+// ── Room Data ─────────────────────────────────────────────────────────
 const ROOMS = [
-  {
-    id: "lanna-suite", name: "Lanna Suite", nameTh: "ลานนาสวีท",
-    tagline: "Hilltop sanctuary with panoramic mountain views",
-    taglineTh: "ที่พักบนเนินเขาพร้อมวิวภูเขาแบบพาโนรามา",
-    price: 4800, capacity: 2, maxKids: 1, size: 48,
-    beds: "1 King Bed", bedsTh: "เตียงคิงไซส์ 1 เตียง",
-    img: "https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=800&q=80",
-    amenities: ["Private Pool", "Mountain View", "Rain Shower"],
-    amenitiesTh: ["สระว่ายน้ำส่วนตัว", "วิวภูเขา", "ฝักบัวเรนชาเวอร์"],
-    bookedDates: generateBookedDates()
+  { id:"R001", capacity:1,  price:500,  rooms:50, priceChildren:300, petAllowed:false, nameTH:"ลานกางเต็นท์",   nameEN:"Camping Area",      img:"https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=800&q=80", type:"camping", icon:"🏕️", amenities:["Shared Facilities","Fire Pit","BBQ Area"], desc:"Open-air camping ground surrounded by nature." },
+  { id:"R002", capacity:4,  price:4500, rooms:1,  priceChildren:300, petAllowed:false, nameTH:"บ้านพารวย",       nameEN:"Phruay House",       img:"https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80", type:"house", icon:"🏡", amenities:["Air Conditioning","Kitchen","Parking"], desc:"Spacious 4-guest house with full kitchen and private parking." },
+  { id:"R003", capacity:4,  price:4500, rooms:2,  priceChildren:300, petAllowed:false, nameTH:"บ้านสิริล้านนา", nameEN:"Sirilanna House",     img:"https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=800&q=80", type:"house", icon:"🏡", amenities:["Lanna Décor","Mountain View","2 Bedrooms"], desc:"Traditional Lanna-style home with panoramic mountain views." },
+  { id:"R004", capacity:2,  price:4500, rooms:1,  priceChildren:300, petAllowed:false, nameTH:"บ้านดารามณี",    nameEN:"Daramanee House",    img:"https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=800&q=80", type:"house", icon:"🏡", amenities:["Private Garden","Rain Shower","Hammock"], desc:"Intimate 2-guest retreat with a serene private garden." },
+  { id:"R005", capacity:2,  price:4500, rooms:1,  priceChildren:300, petAllowed:false, nameTH:"บ้านบานชื่น",    nameEN:"Ban Chuen House",    img:"https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&q=80", type:"house", icon:"🏡", amenities:["Tropical Garden","Outdoor Bath","Bamboo Décor"], desc:"A cheerful 2-guest cottage nestled in tropical bamboo gardens." },
+  { id:"R006", capacity:3,  price:3500, rooms:1,  priceChildren:300, petAllowed:false, nameTH:"บ้านลีลาวดี",    nameEN:"Leelawadee House",   img:"https://images.unsplash.com/photo-1599619351208-3e6c839d6828?w=800&q=80", type:"house", icon:"🏡", amenities:["Plumeria Garden","Terrace","Free Breakfast"], desc:"3-guest house surrounded by plumeria blossoms and a sunny terrace." },
+  { id:"R007", capacity:4,  price:6000, rooms:2,  priceChildren:300, petAllowed:false, nameTH:"บ้านแคทรียา",   nameEN:"Katria House",       img:"https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&q=80", type:"villa", icon:"🏠", amenities:["Private Pool","2 Bedrooms","Premium Kitchen"], desc:"Luxury 4-guest villa with private pool and premium finishes." },
+  { id:"R008", capacity:2,  price:1500, rooms:1,  priceChildren:300, petAllowed:false, nameTH:"บ้านบังกะโล",   nameEN:"Bungalow House",     img:"https://images.unsplash.com/photo-1587381420270-3e1a5b9e6904?w=800&q=80", type:"bungalow", icon:"🛖", amenities:["Forest Deck","Outdoor Shower","Cozy Interior"], desc:"Charming teak bungalow set in a peaceful forest setting." },
+  { id:"R009", capacity:2,  price:4500, rooms:1,  priceChildren:300, petAllowed:true,  petPrice:300, nameTH:"บ้านเพรชจรัล",  nameEN:"Petcharan House",    img:"https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=800&q=80", type:"house", icon:"🐾", amenities:["Pet Friendly","Private Garden","Dog Wash Station"], desc:"Our only pet-friendly property with a dedicated dog wash station." },
+].map(r => ({ ...r, bookedDates: genBooked() }));
+
+// ── Palette ───────────────────────────────────────────────────────────
+const P = {
+  bg: "#F8F5F0", surface: "#FFFFFF", surfaceAlt: "#F3EFE9",
+  border: "#E2D9CF", borderStrong: "#C8B9A8",
+  text: "#1E1A17", textMid: "#6B5D52", textLight: "#9C8C80",
+  accent: "#7B5E3A", accentLight: "#A07848", accentBg: "#FFF8F0",
+  sage: "#5E7A5E", sageBg: "#EBF2EB",
+  red: "#9B3535", redBg: "#FDECEA",
+  amber: "#8A6A1A", amberBg: "#FFF8E1",
+  inRange: "#F5EDE0",
+};
+
+// ── Shared Styles ─────────────────────────────────────────────────────
+const SS = {
+  card: { background: P.surface, border: `1px solid ${P.border}`, borderRadius: 16, overflow: "hidden" },
+  input: {
+    width: "100%", boxSizing: "border-box", background: P.surface, border: `1.5px solid ${P.border}`,
+    borderRadius: 10, padding: "12px 16px", fontSize: 14, color: P.text,
+    fontFamily: "inherit", outline: "none", transition: "border-color 0.2s",
   },
-  {
-    id: "garden-villa", name: "Garden Villa", nameTh: "การ์เด้นวิลล่า",
-    tagline: "Secluded bamboo villa in tropical gardens",
-    taglineTh: "วิลล่าไผ่ส่วนตัวในสวนเขตร้อน",
-    price: 3200, capacity: 3, maxKids: 2, size: 56,
-    beds: "1 King + Daybed", bedsTh: "เตียงคิงไซส์ + เดย์เบด",
-    img: "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&q=80",
-    amenities: ["Private Garden", "Outdoor Bath", "Hammock"],
-    amenitiesTh: ["สวนส่วนตัว", "อ่างอาบน้ำกลางแจ้ง", "เปลญวน"],
-    bookedDates: generateBookedDates()
+  btnPrimary: {
+    background: P.accent, color: "#FFF", border: "none", padding: "13px 28px", borderRadius: 10,
+    fontWeight: 600, fontSize: 14, cursor: "pointer", width: "100%", transition: "background 0.2s",
   },
-  {
-    id: "mountain-retreat", name: "Mountain Retreat", nameTh: "เมาน์เทนรีทรีท",
-    tagline: "Handcrafted teak bungalow",
-    taglineTh: "บังกะโลไม้สักทำมือ",
-    price: 2600, capacity: 2, maxKids: 1, size: 36,
-    beds: "1 Queen Bed", bedsTh: "เตียงควีนไซส์ 1 เตียง",
-    img: "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=800&q=80",
-    amenities: ["Forest Deck", "Outdoor Shower", "Fire Pit"],
-    amenitiesTh: ["ดาดฟ้าป่า", "อาบน้ำกลางแจ้ง", "หลุมไฟ"],
-    bookedDates: generateBookedDates()
+  btnGhost: {
+    background: "transparent", color: P.accent, border: `1.5px solid ${P.borderStrong}`,
+    padding: "10px 20px", borderRadius: 10, fontWeight: 500, fontSize: 14, cursor: "pointer",
+  },
+  counterBtn: {
+    width: 34, height: 34, borderRadius: "50%", border: `1.5px solid ${P.borderStrong}`,
+    background: "transparent", fontSize: 18, cursor: "pointer", color: P.accent,
+    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+  },
+  label: { fontSize: 12, fontWeight: 600, color: P.textMid, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, display: "block" },
+  sectionTitle: { fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 500, color: P.text, marginBottom: 16 },
+};
+
+// ── Step Pill ─────────────────────────────────────────────────────────
+const StepPill = ({ current }) => {
+  const steps = ["Dates", "Room", "Guests", "Confirm"];
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0, marginBottom: 32 }}>
+      {steps.map((s, i) => {
+        const idx = i + 1;
+        const done = current > idx, active = current === idx;
+        return (
+          <div key={s} style={{ display: "flex", alignItems: "center" }}>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 24,
+              background: active ? P.accent : done ? P.accentBg : "transparent",
+              border: `1.5px solid ${active ? P.accent : done ? P.accentLight : P.border}`,
+              color: active ? "#FFF" : done ? P.accentLight : P.textLight,
+              fontSize: 13, fontWeight: active ? 600 : 400,
+            }}>
+              <span style={{ width: 20, height: 20, borderRadius: "50%", background: active ? "rgba(255,255,255,0.25)" : done ? P.accentLight : P.border, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: active ? "#FFF" : done ? "#FFF" : P.textLight }}>
+                {done ? "✓" : idx}
+              </span>
+              {s}
+            </div>
+            {i < 3 && <div style={{ width: 20, height: 1.5, background: current > idx+1 ? P.accentLight : P.border }} />}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// ── Calendar ──────────────────────────────────────────────────────────
+const Calendar = ({ checkIn, checkOut, onDateClick, blockedDates = [] }) => {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const [vy, setVy] = useState(today.getFullYear());
+  const [vm, setVm] = useState(today.getMonth());
+  const firstDay = new Date(vy, vm, 1).getDay();
+  const daysInMonth = new Date(vy, vm + 1, 0).getDate();
+
+  const prevMonth = () => vm === 0 ? (setVm(11), setVy(vy-1)) : setVm(vm-1);
+  const nextMonth = () => vm === 11 ? (setVm(0), setVy(vy+1)) : setVm(vm+1);
+
+  const days = [];
+  for (let i = 0; i < firstDay; i++) days.push(<div key={`e${i}`} />);
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = toKey(vy, vm, d);
+    const date = new Date(vy, vm, d);
+    const isPast = date < today;
+    const isBlocked = blockedDates.includes(key);
+    const isCIn = checkIn === key, isCOut = checkOut === key;
+    const inRange = checkIn && checkOut && key > checkIn && key < checkOut;
+    const isStart = checkIn && !checkOut && key > checkIn;
+
+    let bg = P.bg, color = P.text, fw = 400, cursor = "pointer";
+    if (isPast || isBlocked) { bg = "transparent"; color = P.textLight; cursor = "default"; if (isBlocked) { bg = P.redBg; color = P.red; } }
+    else if (isCIn || isCOut) { bg = P.accent; color = "#FFF"; fw = 700; }
+    else if (inRange) { bg = P.inRange; color = P.accent; }
+    else if (isStart) { bg = P.accentBg; color = P.accentLight; }
+
+    days.push(
+      <button key={d} disabled={isPast || isBlocked} onClick={() => onDateClick(key)} style={{
+        aspectRatio: "1", borderRadius: isCIn ? "8px 0 0 8px" : isCOut ? "0 8px 8px 0" : 8,
+        border: "none", cursor, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center",
+        background: bg, color, fontWeight: fw, transition: "all 0.15s", fontFamily: "inherit",
+      }}>{d}</button>
+    );
   }
-];
 
-const stepLabels = {
-  en: ["Dates", "Room", "Details", "Review"],
-  th: ["วันที่", "ห้อง", "รายละเอียด", "ยืนยัน"],
-  cn: ["日期", "房间", "详情", "确认"],
+  return (
+    <div style={{ padding: "24px 20px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <button style={{ ...SS.counterBtn, fontSize: 20 }} onClick={prevMonth}>‹</button>
+        <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: P.text, fontWeight: 500 }}>
+          {MONTHS[vm]} {vy}
+        </span>
+        <button style={{ ...SS.counterBtn, fontSize: 20 }} onClick={nextMonth}>›</button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+        {DAYS.map(d => <div key={d} style={{ textAlign: "center", fontSize: 11, color: P.textLight, paddingBottom: 10, fontWeight: 600 }}>{d}</div>)}
+        {days}
+      </div>
+      <div style={{ display: "flex", gap: 16, marginTop: 16, flexWrap: "wrap" }}>
+        {[["#D9F0D9","#2E6B2E","Available"],["#FDECEA","#9B3535","Fully booked"]].map(([bg,c,l]) => (
+          <div key={l} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 12, height: 12, borderRadius: 3, background: bg, border: `1px solid ${c}` }} />
+            <span style={{ fontSize: 11, color: P.textLight }}>{l}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 };
 
-const fadeIn = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -20 },
+// ── Room Card ─────────────────────────────────────────────────────────
+const RoomCard = ({ room, selected, available, onSelect }) => {
+  const typeLabel = { camping: "Camping", house: "House", villa: "Villa", bungalow: "Bungalow" };
+  return (
+    <div onClick={() => available && onSelect(room.id)} style={{
+      ...SS.card, cursor: available ? "pointer" : "not-allowed", opacity: available ? 1 : 0.55,
+      border: selected ? `2px solid ${P.accent}` : `1px solid ${P.border}`,
+      display: "grid", gridTemplateColumns: "160px 1fr", gap: 0,
+    }}>
+      <div style={{ position: "relative" }}>
+        <img src={room.img} alt={room.nameEN} style={{ width: "100%", height: "100%", objectFit: "cover", minHeight: 140 }} />
+        <div style={{ position: "absolute", top: 8, left: 8, background: "rgba(0,0,0,0.55)", color: "#FFF", fontSize: 11, padding: "3px 8px", borderRadius: 20, fontWeight: 600 }}>
+          {typeLabel[room.type] || room.type}
+        </div>
+      </div>
+      <div style={{ padding: "16px 20px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+          <div>
+            <div style={{ fontSize: 16, fontFamily: "'Cormorant Garamond', serif", fontWeight: 600, color: P.text }}>{room.nameEN}</div>
+            <div style={{ fontSize: 12, color: P.textMid }}>{room.nameTH}</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: P.accent }}>{formatTHB(room.price)}</div>
+            <div style={{ fontSize: 11, color: P.textLight }}>/ night</div>
+          </div>
+        </div>
+        <p style={{ fontSize: 13, color: P.textMid, marginBottom: 10, lineHeight: 1.5 }}>{room.desc}</p>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+          {[`👥 Max ${room.capacity}`, `🛏 ${room.rooms} room${room.rooms>1?"s":""}`, room.petAllowed ? `🐾 Pets OK` : null].filter(Boolean).map(t => (
+            <span key={t} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, background: P.surfaceAlt, color: P.textMid, fontWeight: 500 }}>{t}</span>
+          ))}
+          {room.petAllowed && <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, background: P.sageBg, color: P.sage, fontWeight: 500 }}>+{formatTHB(room.petPrice)}/pet</span>}
+        </div>
+        {!available && <span style={{ fontSize: 12, color: P.red, fontWeight: 600 }}>Not available for selected dates</span>}
+        {selected && <span style={{ fontSize: 12, color: "#FFF", background: P.accent, padding: "4px 14px", borderRadius: 20, fontWeight: 600 }}>✓ Selected</span>}
+      </div>
+    </div>
+  );
 };
 
-const slideUp = {
-  initial: { opacity: 0, y: 40, scale: 0.98 },
-  animate: { opacity: 1, y: 0, scale: 1 },
-  exit: { opacity: 0, y: -20, scale: 0.98 },
+// ── Counter ───────────────────────────────────────────────────────────
+const Counter = ({ label, sub, value, min, max, onChange }) => (
+  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0", borderBottom: `1px solid ${P.border}` }}>
+    <div>
+      <div style={{ fontSize: 14, fontWeight: 500, color: P.text }}>{label}</div>
+      {sub && <div style={{ fontSize: 12, color: P.textLight }}>{sub}</div>}
+    </div>
+    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+      <button style={{ ...SS.counterBtn, opacity: value <= min ? 0.4 : 1 }} onClick={() => value > min && onChange(value-1)}>−</button>
+      <span style={{ fontSize: 17, fontWeight: 600, minWidth: 20, textAlign: "center", color: P.text }}>{value}</span>
+      <button style={{ ...SS.counterBtn, opacity: value >= max ? 0.4 : 1 }} onClick={() => value < max && onChange(value+1)}>+</button>
+    </div>
+  </div>
+);
+
+// ── Summary Sidebar ───────────────────────────────────────────────────
+const SummarySidebar = ({ room, checkIn, checkOut, adults, childrenFree, childrenAddOn, petFree, petAddOn, canConfirm, onConfirm }) => {
+  const nights = nightsBetween(checkIn, checkOut);
+  if (!room) return null;
+  const roomCost = nights * room.price;
+  const childCost = childrenAddOn * room.priceChildren * nights;
+  const petCost = room.petAllowed ? petAddOn * room.petPrice * nights : 0;
+  const total = roomCost + childCost + petCost;
+
+  return (
+    <div style={{ ...SS.card, padding: 24, position: "sticky", top: 20 }}>
+      <h3 style={{ ...SS.sectionTitle, marginBottom: 16 }}>Booking Summary</h3>
+      <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+        <img src={room.img} style={{ width: 72, height: 72, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} alt={room.nameEN} />
+        <div>
+          <div style={{ fontWeight: 600, color: P.text, fontSize: 15 }}>{room.nameEN}</div>
+          <div style={{ fontSize: 12, color: P.textMid }}>{room.nameTH}</div>
+          <div style={{ fontSize: 12, color: P.textLight, marginTop: 4 }}>{room.id} · {room.rooms} room{room.rooms>1?"s":""}</div>
+        </div>
+      </div>
+      <div style={{ background: P.surfaceAlt, borderRadius: 10, padding: "12px 14px", marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div><div style={{ fontSize: 11, color: P.textLight, marginBottom: 3 }}>CHECK-IN</div><div style={{ fontSize: 13, fontWeight: 600, color: P.text }}>{formatDate(checkIn)}</div></div>
+          <div><div style={{ fontSize: 11, color: P.textLight, marginBottom: 3 }}>CHECK-OUT</div><div style={{ fontSize: 13, fontWeight: 600, color: P.text }}>{formatDate(checkOut)}</div></div>
+        </div>
+        <div style={{ marginTop: 10, borderTop: `1px solid ${P.border}`, paddingTop: 10 }}>
+          <div style={{ fontSize: 12, color: P.textMid }}>{nights} night{nights!==1?"s":""} · {adults} adult{adults>1?"s":""}{childrenFree+childrenAddOn>0?` · ${childrenFree+childrenAddOn} child${childrenFree+childrenAddOn>1?"ren":""}`:""}{petFree+petAddOn>0?` · ${petFree+petAddOn} pet${petFree+petAddOn>1?"s":""}`:""}</div>
+        </div>
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        {[
+          [`Room × ${nights} night${nights!==1?"s":""}`, roomCost],
+          childrenAddOn > 0 && [`Extra bedding (${childrenAddOn} child${childrenAddOn>1?"ren":""}) × ${nights}n`, childCost],
+          petAddOn > 0 && room.petAllowed && [`Pet fee (${petAddOn}) × ${nights}n`, petCost],
+        ].filter(Boolean).map(([label, val]) => (
+          <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: P.textMid, marginBottom: 6 }}>
+            <span>{label}</span><span>{formatTHB(val)}</span>
+          </div>
+        ))}
+        <div style={{ borderTop: `1px solid ${P.border}`, paddingTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontWeight: 700, color: P.text }}>Total</span>
+          <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 26, fontWeight: 600, color: P.accent }}>{formatTHB(total)}</span>
+        </div>
+      </div>
+      <button onClick={onConfirm} disabled={!canConfirm} style={{ ...SS.btnPrimary, opacity: canConfirm ? 1 : 0.45 }}>
+        Confirm Reservation
+      </button>
+      <p style={{ fontSize: 11, color: P.textLight, textAlign: "center", marginTop: 10 }}>Free cancellation up to 7 days before check-in</p>
+    </div>
+  );
 };
 
+// ── Upload Slip ───────────────────────────────────────────────────────
+const SlipUpload = ({ file, onChange }) => {
+  const ref = useRef();
+  return (
+    <div>
+      <label style={SS.label}>Payment Slip (optional)</label>
+      <div onClick={() => ref.current.click()} style={{
+        border: `2px dashed ${P.borderStrong}`, borderRadius: 10, padding: "20px", textAlign: "center", cursor: "pointer",
+        background: file ? P.sageBg : P.surfaceAlt, color: file ? P.sage : P.textLight, fontSize: 13,
+      }}>
+        {file ? `✓ ${file.name}` : "Click to upload transfer slip (JPG, PNG, PDF)"}
+        <input ref={ref} type="file" accept="image/*,.pdf" style={{ display: "none" }} onChange={e => onChange(e.target.files[0])} />
+      </div>
+    </div>
+  );
+};
+
+// ── Main Component ────────────────────────────────────────────────────
 export default function BookingRoom() {
-  const { lang, content } = useLanguage();
-  const monthLabels = MONTHS[lang] || MONTHS.en;
-  const dayLabels = DAYS[lang] || DAYS.en;
-  const labels = stepLabels[lang] || stepLabels.en;
-  const t = content?.booking || {};
-
   const [step, setStep] = useState(1);
   const [checkIn, setCheckIn] = useState(null);
   const [checkOut, setCheckOut] = useState(null);
-  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [adults, setAdults] = useState(1);
-  const [kids, setKids] = useState(0);
+  const [childrenFree, setChildrenFree] = useState(0);
+  const [childrenAddOn, setChildrenAddOn] = useState(0);
+  const [petFree, setPetFree] = useState(0);
+  const [petAddOn, setPetAddOn] = useState(0);
   const [kidAges, setKidAges] = useState([]);
-  const [guestName, setGuestName] = useState("");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [specialRequests, setSpecialRequests] = useState("");
-  const [viewMonth, setViewMonth] = useState(new Date().getMonth());
-  const [viewYear, setViewYear] = useState(new Date().getFullYear());
-  const [touched, setTouched] = useState({});
-  const [focusedField, setFocusedField] = useState(null);
-  const topRef = useRef(null);
+  const [detail, setDetail] = useState("");
+  const [slip, setSlip] = useState(null);
+  const [confirmId] = useState(genId());
+  const [errors, setErrors] = useState({});
 
-  const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
-
-  const scrollToTop = useCallback(() => {
-    topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  useEffect(() => {
+    const link = document.createElement("link");
+    link.href = "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap";
+    link.rel = "stylesheet"; document.head.appendChild(link);
   }, []);
 
-  const langIsTh = lang === 'th';
+  const room = ROOMS.find(r => r.id === selectedRoomId);
+  const nights = nightsBetween(checkIn, checkOut);
+  const totalKids = childrenFree + childrenAddOn;
+  const totalPets = petFree + petAddOn;
 
-  const isRoomAvailable = useCallback((room, startKey, endKey) => {
-    if (!startKey || !endKey) return true;
-    const start = parseDate(startKey);
-    const end = parseDate(endKey);
-    let current = new Date(start);
-    while (current < end) {
-      const key = toKey(current.getFullYear(), current.getMonth(), current.getDate());
-      if (room.bookedDates.includes(key)) return false;
-      current.setDate(current.getDate() + 1);
+  const isRoomAvailable = (r, s, e) => {
+    if (!s || !e) return true;
+    const start = parseDate(s); const end = parseDate(e);
+    let cur = new Date(start);
+    while (cur < end) {
+      const k = toKey(cur.getFullYear(), cur.getMonth(), cur.getDate());
+      if (r.bookedDates.includes(k)) return false;
+      cur.setDate(cur.getDate()+1);
     }
     return true;
+  };
+
+  const availableRooms = useMemo(() =>
+    ROOMS.filter(r => isRoomAvailable(r, checkIn, checkOut)), [checkIn, checkOut]);
+
+  const allBlockedDates = useMemo(() => {
+    const all = ROOMS.flatMap(r => r.bookedDates);
+    return [...new Set(all.filter(d => ROOMS.every(r => r.bookedDates.includes(d))))];
   }, []);
 
-  const availableRooms = useMemo(() => {
-    if (!checkIn || !checkOut) return ROOMS;
-    return ROOMS.filter(r => isRoomAvailable(r, checkIn, checkOut));
-  }, [checkIn, checkOut, isRoomAvailable]);
-
-  const totalNights = nightsBetween(checkIn, checkOut);
-  const selectedRoomData = ROOMS.find(r => r.id === selectedRoom);
-  const totalPrice = selectedRoomData ? (totalNights * selectedRoomData.price) + (kids * 300) : 0;
-
-  const handleDateClick = useCallback((key) => {
-    const date = parseDate(key);
-    if (date < today) return;
-    if (!checkIn || (checkIn && checkOut)) {
-      setCheckIn(key);
-      setCheckOut(null);
-      setSelectedRoom(null);
-    } else {
-      if (key <= checkIn) {
-        setCheckIn(key);
-        setCheckOut(null);
-      } else {
-        setCheckOut(key);
-      }
-    }
-  }, [checkIn, checkOut, today]);
-
-  const handleConfirm = () => {
-    if (!guestName || !email) return;
-    setStep(5);
-    scrollToTop();
+  const handleDateClick = (key) => {
+    const today = new Date(); today.setHours(0,0,0,0);
+    if (parseDate(key) < today) return;
+    if (!checkIn || (checkIn && checkOut)) { setCheckIn(key); setCheckOut(null); setSelectedRoomId(null); }
+    else { if (key <= checkIn) { setCheckIn(key); setCheckOut(null); } else { setCheckOut(key); } }
   };
 
-  const resetBooking = () => {
-    setStep(1); setCheckIn(null); setCheckOut(null);
-    setSelectedRoom(null); setAdults(1); setKids(0);
-    setKidAges([]); setGuestName(""); setEmail("");
-    setPhone(""); setSpecialRequests(""); setTouched({});
+  const validate = () => {
+    const e = {};
+    if (!name.trim()) e.name = "Full name is required";
+    if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) e.email = "Valid email required";
+    if (!phone.trim()) e.phone = "Phone number is required";
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
-  const goToStep = (s) => { setStep(s); scrollToTop(); };
+  const handleConfirm = () => { if (validate()) setStep(5); };
 
-  const nextDisabled = {
-    1: !checkIn || !checkOut,
-    2: !selectedRoom,
-    3: !guestName || !email,
+  const reset = () => {
+    setStep(1); setCheckIn(null); setCheckOut(null); setSelectedRoomId(null);
+    setAdults(1); setChildrenFree(0); setChildrenAddOn(0); setPetFree(0); setPetAddOn(0);
+    setKidAges([]); setName(""); setEmail(""); setPhone(""); setDetail(""); setSlip(null); setErrors({});
   };
 
-  const formatDate = (key) => {
-    if (!key) return "";
-    const d = parseDate(key);
-    return `${d.getDate()} ${monthLabels[d.getMonth()]} ${d.getFullYear()}`;
-  };
+  const roomCost = room ? nights * room.price : 0;
+  const childCost = room ? childrenAddOn * room.priceChildren * nights : 0;
+  const petCost = room?.petAllowed ? petAddOn * (room.petPrice||0) * nights : 0;
+  const totalPrice = roomCost + childCost + petCost;
 
-  const renderCalendar = (monthOffset = 0) => {
-    const m = monthOffset === 0 ? viewMonth : (viewMonth + 1 > 11 ? 0 : viewMonth + 1);
-    const y = monthOffset === 0 ? viewYear : (viewMonth + 1 > 11 ? viewYear + 1 : viewYear);
-    const firstDay = new Date(y, m, 1).getDay();
-    const daysInMonth = new Date(y, m + 1, 0).getDate();
-
-    const days = [];
-    for (let i = 0; i < firstDay; i++) days.push(<div key={`e${i}`} />);
-
-    for (let d = 1; d <= daysInMonth; d++) {
-      const key = toKey(y, m, d);
-      const date = new Date(y, m, d);
-      const isPast = date < today;
-      const isCheckIn = checkIn === key;
-      const isCheckOut = checkOut === key;
-      const inRange = checkIn && checkOut && key > checkIn && key < checkOut;
-      const isBooked = !ROOMS.some(r => !r.bookedDates.includes(key));
-      const isAvailableHover = checkIn && !checkOut && key > checkIn && !isPast && !isBooked;
-
-      let cls = "relative flex items-center justify-center w-full aspect-square rounded-xl text-sm font-medium transition-all duration-200 border-0 ";
-      let disabled = false;
-
-      if (isPast) {
-        cls += "text-warm-200 cursor-default";
-        disabled = true;
-      } else if (isCheckIn || isCheckOut) {
-        cls += "bg-forest-500 text-white shadow-lg shadow-forest-500/30 font-semibold scale-105 z-10";
-      } else if (inRange) {
-        cls += "bg-forest-500/10 text-warm-900 rounded-none";
-        if (key === checkIn) cls += " rounded-l-xl";
-        if (key === checkOut) cls += " rounded-r-xl";
-      } else if (isBooked) {
-        cls += "text-red-300 cursor-not-allowed line-through";
-        disabled = true;
-      } else if (isAvailableHover) {
-        cls += "bg-mist-100 text-forest-600 hover:bg-forest-500/15";
-      } else {
-        cls += "text-warm-800 hover:bg-mist-100 hover:text-forest-600";
-      }
-
-      if (isCheckIn && checkOut) cls += " rounded-r-xl";
-      if (isCheckOut) cls += " rounded-l-xl";
-      if (isCheckIn && !checkOut) cls += " rounded-xl";
-
-      days.push(
-        <button key={d} className={cls} disabled={disabled} onClick={() => handleDateClick(key)} type="button">
-          <span className={`relative z-10 ${isCheckIn || isCheckOut ? 'text-white' : ''}`}>{d}</span>
-          {isCheckIn && !checkOut && (
-            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] font-sans text-forest-500 font-semibold tracking-wide">
-              {lang === 'th' ? 'เช็คอิน' : lang === 'cn' ? '入住' : 'IN'}
-            </span>
-          )}
-        </button>
-      );
-    }
-    return { days, month: m, year: y };
-  };
-
+  // ── Confirmation Screen ───────────────────────────────────────────
   if (step === 5) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-warm-50 to-warm-100 flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: "spring", duration: 0.8 }}
-          className="max-w-lg w-full bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-warm-200/50 overflow-hidden"
-        >
-          <div className="relative h-48 bg-gradient-to-br from-forest-500 to-forest-600 flex items-center justify-center overflow-hidden">
-            <div className="absolute inset-0 opacity-20">
-              <div className="absolute top-4 left-4 w-16 h-16 border border-white/20 rounded-full" />
-              <div className="absolute top-8 right-8 w-24 h-24 border border-white/10 rounded-full" />
-              <div className="absolute -bottom-4 -left-4 w-32 h-32 border border-white/5 rounded-full" />
+      <div style={{ background: P.bg, minHeight: "100vh", fontFamily: "'Inter', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <div style={{ ...SS.card, maxWidth: 520, width: "100%", padding: 40, textAlign: "center" }}>
+          <div style={{ width: 64, height: 64, borderRadius: "50%", background: P.sageBg, margin: "0 auto 20px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>✓</div>
+          <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 34, color: P.text, marginBottom: 8 }}>Reservation Confirmed</h1>
+          <p style={{ color: P.textMid, marginBottom: 24 }}>Thank you, <strong>{name}</strong>. We've received your booking and will send confirmation to <strong>{email}</strong>.</p>
+
+          <div style={{ background: P.surfaceAlt, borderRadius: 12, padding: 20, textAlign: "left", marginBottom: 24 }}>
+            <div style={{ display: "flex", gap: 14, marginBottom: 14 }}>
+              <img src={room?.img} style={{ width: 80, height: 80, borderRadius: 10, objectFit: "cover" }} alt="" />
+              <div>
+                <div style={{ fontWeight: 600, color: P.text }}>{room?.nameEN}</div>
+                <div style={{ fontSize: 12, color: P.textMid }}>{room?.nameTH}</div>
+                <div style={{ fontSize: 13, color: P.textMid, marginTop: 4 }}>{formatDate(checkIn)} → {formatDate(checkOut)}</div>
+              </div>
             </div>
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1, rotate: [0, 10, 0] }}
-              transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
-              className="w-20 h-20 bg-white/20 backdrop-blur rounded-full flex items-center justify-center"
-            >
-              <CheckCircle className="w-10 h-10 text-white" />
-            </motion.div>
-          </div>
-
-          <div className="p-8 text-center">
-            <motion.h1
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="text-3xl font-serif text-warm-900 mb-2"
-            >
-              {lang === 'th' ? 'ยืนยันการจองเรียบร้อย' : lang === 'cn' ? '预订已确认' : 'Reservation Confirmed'}
-            </motion.h1>
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="text-warm-600 mb-6"
-            >
-              {lang === 'th'
-                ? `ขอบคุณ ${guestName} เราได้ส่งรายละเอียดการจองไปยัง ${email} แล้ว`
-                : lang === 'cn'
-                ? `感谢您 ${guestName}，确认详情已发送至 ${email}`
-                : `Thank you, ${guestName}. A confirmation has been sent to ${email}.`}
-            </motion.p>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-              className="bg-gradient-to-br from-warm-50 to-mist-100 rounded-2xl p-6 text-left mb-6 border border-warm-200/50"
-            >
-              <div className="flex gap-4 mb-4">
-                <img src={selectedRoomData?.img} className="w-20 h-20 rounded-xl object-cover shadow-md" alt="" />
-                <div>
-                  <p className="font-semibold text-warm-900 text-lg">{lang === 'th' ? selectedRoomData?.nameTh : selectedRoomData?.name}</p>
-                  <div className="flex items-center gap-1 text-sm text-warm-500 mt-1">
-                    <CalendarDays size={14} />
-                    <span>{formatDate(checkIn)} – {formatDate(checkOut)}</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-sm text-warm-500 mt-0.5">
-                    <Users size={14} />
-                    <span>{adults} {lang === 'th' ? 'ผู้ใหญ่' : lang === 'cn' ? '成人' : 'Adults'}{kids > 0 ? `, ${kids} ${lang === 'th' ? 'เด็ก' : lang === 'cn' ? '儿童' : 'Kids'}` : ''}</span>
-                  </div>
+            <div style={{ borderTop: `1px solid ${P.border}`, paddingTop: 12, display: "grid", gap: 6 }}>
+              {[
+                ["Booking ID", confirmId],
+                ["Room ID", room?.id],
+                ["Guests", `${adults} adult${adults>1?"s":""}${totalKids>0?` · ${totalKids} children`:""}`],
+                [slip ? "Slip" : null, slip ? slip.name : null],
+              ].filter(([k]) => k).map(([k,v]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                  <span style={{ color: P.textLight }}>{k}</span>
+                  <span style={{ fontWeight: 500, color: P.text }}>{v}</span>
                 </div>
+              ))}
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+                <span style={{ fontWeight: 700, color: P.text }}>Total Charged</span>
+                <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 600, color: P.accent }}>{formatTHB(totalPrice)}</span>
               </div>
-              <div className="border-t border-warm-200 pt-4 flex justify-between items-center">
-                <span className="font-medium text-warm-700">{lang === 'th' ? 'รวมทั้งสิ้น' : lang === 'cn' ? '总计' : 'Total Paid'}</span>
-                <span className="text-2xl font-serif text-forest-600 font-bold">฿{formatPrice(totalPrice)}</span>
-              </div>
-            </motion.div>
-
-            <motion.button
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.8 }}
-              onClick={resetBooking}
-              className="w-full py-3.5 bg-forest-500 text-white rounded-xl font-medium hover:bg-forest-600 transition-colors shadow-lg shadow-forest-500/20"
-            >
-              {lang === 'th' ? 'จองอีกครั้ง' : lang === 'cn' ? '再次预订' : 'Book Another Stay'}
-            </motion.button>
+            </div>
           </div>
-        </motion.div>
+          <button style={SS.btnPrimary} onClick={reset}>Book Another Stay</button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-warm-50 via-white to-warm-50" ref={topRef}>
+    <div style={{ background: P.bg, minHeight: "100vh", fontFamily: "'Inter', sans-serif", color: P.text }}>
       {/* Hero */}
-      <div className="relative h-52 md:h-64 overflow-hidden">
-        <img
-          src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1400&q=80"
-          className="w-full h-full object-cover"
-          alt=""
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/30 to-black/60" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/10 to-transparent" />
-        <div className="relative z-10 h-full flex flex-col justify-center px-6 md:px-12">
-          <motion.p
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="text-warm-200/80 text-xs tracking-[0.3em] uppercase mb-2 font-sans"
-          >
-            {lang === 'th' ? 'เฮย์นาว เชียงดาว' : 'Hey Now Chiang Dao'}
-          </motion.p>
-          <motion.h1
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-3xl md:text-5xl font-serif text-white leading-tight"
-          >
-            {lang === 'th' ? 'จองที่พักของคุณ' : lang === 'cn' ? '预订您的住宿' : 'Reserve Your Escape'}
-          </motion.h1>
+      <div style={{ position: "relative", height: 260, overflow: "hidden" }}>
+        <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1400&q=80" style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="Resort" />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg, rgba(30,20,10,0.2) 0%, rgba(10,5,0,0.65) 100%)" }} />
+        <div style={{ position: "relative", zIndex: 1, padding: "50px 40px" }}>
+          <p style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(255,255,255,0.7)", marginBottom: 10 }}>Sanctuary Resort · Chiang Mai</p>
+          <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 50, color: "#FFF", margin: 0, lineHeight: 1.1 }}>Reserve Your <em>Escape</em></h1>
         </div>
       </div>
 
       {/* Progress */}
-      <div className="max-w-5xl mx-auto px-4 pt-6 pb-2">
-        <div className="flex items-center justify-center gap-2 md:gap-4">
-          {[1, 2, 3, 4].map((s) => (
-            <div key={s} className="flex items-center gap-2 md:gap-4">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => s < step && goToStep(s)}
-                className={`flex items-center gap-2 ${s < step ? 'cursor-pointer' : 'cursor-default'}`}
-              >
-                <div className={`
-                  relative w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center text-sm font-medium
-                  transition-all duration-300
-                  ${step > s
-                    ? 'bg-forest-500 text-white shadow-md shadow-forest-500/20'
-                    : step === s
-                    ? 'bg-forest-500 text-white shadow-lg shadow-forest-500/30 scale-110'
-                    : 'bg-warm-100 text-warm-400 border-2 border-warm-200'
-                  }
-                `}>
-                  {step > s ? <CheckCircle size={18} /> : s}
-                  {step === s && (
-                    <motion.span
-                      layoutId="pulse"
-                      className="absolute inset-0 rounded-full border-2 border-forest-500/40"
-                      animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    />
-                  )}
-                </div>
-                <span className={`hidden md:block text-xs font-medium ${
-                  step >= s ? 'text-warm-900' : 'text-warm-400'
-                }`}>
-                  {labels[s - 1]}
-                </span>
-              </motion.button>
-              {s < 4 && (
-                <div className={`w-8 md:w-16 h-px ${
-                  step > s ? 'bg-forest-500' : 'bg-warm-200'
-                } transition-colors duration-300`} />
-              )}
-            </div>
-          ))}
-        </div>
+      <div style={{ maxWidth: 960, margin: "0 auto", padding: "28px 20px 0" }}>
+        <StepPill current={step} />
       </div>
 
       {/* Content */}
-      <div className="max-w-5xl mx-auto px-4 py-6 md:py-10 pb-20">
-        <AnimatePresence mode="wait">
-          {/* STEP 1: Dates */}
-          {step === 1 && (
-            <motion.div key="step1" {...slideUp} transition={{ duration: 0.3 }}>
-              <div className="grid md:grid-cols-[1fr_320px] gap-6 md:gap-8">
-                <div className="bg-white rounded-2xl shadow-sm border border-warm-200/60 overflow-hidden">
-                  <div className="p-4 md:p-6">
-                    <div className="flex items-center justify-between mb-6">
-                      <button
-                        onClick={() => {
-                          if (viewMonth === 0) { setViewMonth(11); setViewYear(viewYear - 1); }
-                          else setViewMonth(viewMonth - 1);
-                        }}
-                        className="w-10 h-10 rounded-xl hover:bg-warm-100 flex items-center justify-center transition-colors text-warm-600"
-                      >
-                        <ChevronLeft size={20} />
-                      </button>
-                      <h3 className="text-lg font-serif text-warm-900">
-                        {monthLabels[viewMonth]} {viewYear}
-                      </h3>
-                      <button
-                        onClick={() => {
-                          if (viewMonth === 11) { setViewMonth(0); setViewYear(viewYear + 1); }
-                          else setViewMonth(viewMonth + 1);
-                        }}
-                        className="w-10 h-10 rounded-xl hover:bg-warm-100 flex items-center justify-center transition-colors text-warm-600"
-                      >
-                        <ChevronRight size={20} />
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-7 gap-1">
-                      {dayLabels.map(d => (
-                        <div key={d} className="text-center text-xs font-medium text-warm-400 py-2">{d}</div>
-                      ))}
-                      {(() => {
-                        const cal = renderCalendar(0);
-                        return cal.days;
-                      })()}
-                    </div>
-                  </div>
-                </div>
+      <main style={{ maxWidth: 960, margin: "0 auto", padding: "0 20px 80px" }}>
 
-                <div className="space-y-4">
-                  <div className="bg-white rounded-2xl shadow-sm border border-warm-200/60 p-5">
-                    <h3 className="font-serif text-lg text-warm-900 mb-4 flex items-center gap-2">
-                      <CalendarDays size={18} className="text-forest-500" />
-                      {lang === 'th' ? 'วันที่เข้าพัก' : lang === 'cn' ? '入住日期' : 'Your Stay'}
-                    </h3>
-                    <div className="grid grid-cols-2 gap-3 mb-4">
-                      <div className="bg-gradient-to-br from-warm-50 to-mist-100 rounded-xl p-3.5 border border-warm-200/40">
-                        <p className="text-[10px] uppercase tracking-wider text-warm-500 mb-1 font-sans">
-                          {lang === 'th' ? 'เช็คอิน' : lang === 'cn' ? '入住' : 'Check-in'}
-                        </p>
-                        <p className={`font-medium ${checkIn ? 'text-warm-900' : 'text-warm-300'}`}>
-                          {checkIn ? formatDate(checkIn) : (lang === 'th' ? 'เลือกวันที่' : lang === 'cn' ? '选择日期' : 'Select date')}
-                        </p>
-                      </div>
-                      <div className="bg-gradient-to-br from-warm-50 to-mist-100 rounded-xl p-3.5 border border-warm-200/40">
-                        <p className="text-[10px] uppercase tracking-wider text-warm-500 mb-1 font-sans">
-                          {lang === 'th' ? 'เช็คเอาท์' : lang === 'cn' ? '退房' : 'Check-out'}
-                        </p>
-                        <p className={`font-medium ${checkOut ? 'text-warm-900' : 'text-warm-300'}`}>
-                          {checkOut ? formatDate(checkOut) : (lang === 'th' ? 'เลือกวันที่' : lang === 'cn' ? '选择日期' : 'Select date')}
-                        </p>
-                      </div>
-                    </div>
-                    {checkIn && checkOut && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        className="bg-gradient-to-r from-forest-500/5 to-forest-500/10 rounded-xl p-3.5 text-center border border-forest-500/10"
-                      >
-                        <p className="text-forest-700 font-medium">
-                          <span className="text-2xl font-serif">{totalNights}</span>
-                          <span className="ml-1.5">{lang === 'th' ? 'คืน' : lang === 'cn' ? '晚' : 'nights'}</span>
-                          <span className="mx-2 text-forest-400">·</span>
-                          <span>{availableRooms.length} {lang === 'th' ? 'ห้องว่าง' : lang === 'cn' ? '间可用' : 'rooms available'}</span>
-                        </p>
-                      </motion.div>
-                    )}
+        {/* ── STEP 1: Dates ── */}
+        {step === 1 && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 24 }}>
+            <div style={SS.card}><Calendar checkIn={checkIn} checkOut={checkOut} onDateClick={handleDateClick} blockedDates={allBlockedDates} /></div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ ...SS.card, padding: 20 }}>
+                <h3 style={{ ...SS.sectionTitle, fontSize: 18 }}>Your Stay</h3>
+                {[["CHECK-IN", checkIn], ["CHECK-OUT", checkOut]].map(([l, val]) => (
+                  <div key={l} style={{ padding: "12px 14px", borderRadius: 10, background: val ? P.accentBg : P.surfaceAlt, marginBottom: 10 }}>
+                    <div style={{ fontSize: 10, color: P.textLight, fontWeight: 700, letterSpacing: "0.1em", marginBottom: 3 }}>{l}</div>
+                    <div style={{ fontSize: 14, fontWeight: val ? 600 : 400, color: val ? P.accent : P.textLight }}>{val ? formatDate(val) : "Select on calendar"}</div>
                   </div>
-
-                  <motion.button
-                    whileHover={{ scale: checkIn && checkOut ? 1.01 : 1 }}
-                    whileTap={{ scale: checkIn && checkOut ? 0.99 : 1 }}
-                    onClick={() => goToStep(2)}
-                    disabled={!checkIn || !checkOut}
-                    className={`
-                      w-full py-3.5 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2
-                      ${checkIn && checkOut
-                        ? 'bg-forest-500 text-white hover:bg-forest-600 shadow-lg shadow-forest-500/20'
-                        : 'bg-warm-100 text-warm-400 cursor-not-allowed'
-                      }
-                    `}
-                  >
-                    {lang === 'th' ? 'เลือกห้อง' : lang === 'cn' ? '选择房间' : 'Select Room'}
-                    <ArrowRight size={18} />
-                  </motion.button>
-                </div>
+                ))}
+                {checkIn && checkOut && (
+                  <div style={{ textAlign: "center", padding: "10px", borderRadius: 8, background: P.sageBg, color: P.sage, fontSize: 13, fontWeight: 600, marginBottom: 10 }}>
+                    {nights} nights · {availableRooms.length} rooms available
+                  </div>
+                )}
               </div>
-            </motion.div>
-          )}
-
-          {/* STEP 2: Room Selection */}
-          {step === 2 && (
-            <motion.div key="step2" {...slideUp} transition={{ duration: 0.3 }}>
-              <button
-                onClick={() => goToStep(1)}
-                className="inline-flex items-center gap-1.5 text-sm text-warm-500 hover:text-warm-900 transition-colors mb-5 group"
-              >
-                <ChevronLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
-                {lang === 'th' ? 'กลับไปเลือกวันที่' : lang === 'cn' ? '返回选择日期' : 'Back to Dates'}
+              <button style={{ ...SS.btnPrimary, opacity: checkIn && checkOut ? 1 : 0.45 }} disabled={!checkIn || !checkOut} onClick={() => setStep(2)}>
+                Browse Rooms →
               </button>
+            </div>
+          </div>
+        )}
 
-              <div className="grid gap-4">
-                {ROOMS.map(room => {
-                  const isAvailable = availableRooms.some(r => r.id === room.id);
-                  const isSelected = selectedRoom === room.id;
-                  const roomName = lang === 'th' ? room.nameTh : room.name;
-                  const roomTag = lang === 'th' ? room.taglineTh : room.tagline;
-                  const roomBeds = lang === 'th' ? room.bedsTh : room.beds;
-                  const roomAmenities = lang === 'th' ? room.amenitiesTh : room.amenities;
+        {/* ── STEP 2: Room ── */}
+        {step === 2 && (
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <button onClick={() => setStep(1)} style={SS.btnGhost}>← Back to Dates</button>
+              <span style={{ fontSize: 13, color: P.textMid }}>{availableRooms.length} of {ROOMS.length} rooms available for {nights} nights</span>
+            </div>
+            <div style={{ display: "grid", gap: 16 }}>
+              {ROOMS.map(r => (
+                <RoomCard key={r.id} room={r} selected={selectedRoomId === r.id} available={availableRooms.some(a => a.id === r.id)} onSelect={(id) => { setSelectedRoomId(id); setAdults(1); setChildrenFree(0); setChildrenAddOn(0); setPetFree(0); setPetAddOn(0); setKidAges([]); }} />
+              ))}
+            </div>
+            {selectedRoomId && (
+              <div style={{ marginTop: 20, textAlign: "right" }}>
+                <button style={{ ...SS.btnPrimary, width: "auto", padding: "13px 36px" }} onClick={() => setStep(3)}>
+                  Continue with {room?.nameEN} →
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
-                  return (
-                    <motion.div
-                      key={room.id}
-                      layout
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      whileHover={{ scale: isAvailable ? 1.005 : 1 }}
-                      onClick={() => isAvailable && setSelectedRoom(room.id)}
-                      className={`
-                        relative bg-white rounded-2xl border-2 overflow-hidden cursor-pointer transition-all duration-300
-                        ${isSelected
-                          ? 'border-forest-500 shadow-lg shadow-forest-500/10'
-                          : isAvailable
-                          ? 'border-warm-200/60 hover:border-warm-300 shadow-sm hover:shadow-md'
-                          : 'border-warm-200/40 opacity-60 cursor-not-allowed'
-                        }
-                      `}
-                    >
-                      <div className="flex flex-col sm:flex-row">
-                        <div className="sm:w-48 h-40 sm:h-auto relative overflow-hidden flex-shrink-0">
-                          <img
-                            src={room.img}
-                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                            alt={roomName}
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-                          {!isAvailable && (
-                            <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] flex items-center justify-center">
-                              <span className="bg-white/90 text-warm-600 px-3 py-1 rounded-full text-xs font-medium shadow-sm">
-                                {lang === 'th' ? 'ไม่ว่าง' : lang === 'cn' ? '已满' : 'Unavailable'}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 p-4 md:p-5">
-                          <div className="flex items-start justify-between mb-2">
-                            <div>
-                              <h3 className="font-serif text-xl text-warm-900">{roomName}</h3>
-                              <p className="text-sm text-warm-500 mt-0.5">{roomTag}</p>
-                            </div>
-                            <div className="text-right flex-shrink-0 ml-4">
-                              <p className="text-2xl font-serif font-bold text-forest-600">฿{formatPrice(room.price)}</p>
-                              <p className="text-[10px] uppercase tracking-wider text-warm-500 font-sans">
-                                /{lang === 'th' ? 'คืน' : lang === 'cn' ? '晚' : 'night'}
-                              </p>
-                            </div>
-                          </div>
+        {/* ── STEP 3: Guests ── */}
+        {step === 3 && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 28 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <button onClick={() => setStep(2)} style={{ ...SS.btnGhost, width: "fit-content" }}>← Back to Rooms</button>
 
-                          <div className="flex flex-wrap gap-2 mt-3">
-                            <span className="inline-flex items-center gap-1 text-xs bg-warm-100 text-warm-700 px-2.5 py-1 rounded-lg">
-                              <Bed size={12} />
-                              {roomBeds}
-                            </span>
-                            <span className="inline-flex items-center gap-1 text-xs bg-mist-100 text-forest-700 px-2.5 py-1 rounded-lg">
-                              <Users size={12} />
-                              {room.capacity} {lang === 'th' ? 'ท่าน' : lang === 'cn' ? '人' : 'guests'}
-                            </span>
-                            <span className="inline-flex items-center gap-1 text-xs bg-mist-100 text-forest-700 px-2.5 py-1 rounded-lg">
-                              <Home size={12} />
-                              {room.size}m²
-                            </span>
-                          </div>
-
-                          <div className="flex flex-wrap gap-1.5 mt-2.5">
-                            {roomAmenities.map(a => (
-                              <span key={a} className="text-[11px] text-warm-500 bg-warm-50 px-2 py-0.5 rounded-md">
-                                {a}
-                              </span>
-                            ))}
-                          </div>
-
-                          {isSelected && (
-                            <motion.div
-                              initial={{ opacity: 0, scale: 0.8 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              className="absolute top-3 right-3 sm:top-auto sm:bottom-3 sm:right-3"
-                            >
-                              <span className="bg-forest-500 text-white text-xs font-medium px-3 py-1.5 rounded-full shadow-md shadow-forest-500/30 inline-flex items-center gap-1">
-                                <CheckCircle size={12} />
-                                {lang === 'th' ? 'เลือกแล้ว' : lang === 'cn' ? '已选' : 'Selected'}
-                              </span>
-                            </motion.div>
-                          )}
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                })}
+              {/* Guest Counts */}
+              <div style={{ ...SS.card, padding: 24 }}>
+                <h3 style={{ ...SS.sectionTitle }}>Guests</h3>
+                <Counter label="Adults" sub="Age 12+" value={adults} min={1} max={room?.capacity||4} onChange={setAdults} />
+                <Counter label="Children (free)" sub="Under 5 · No extra bedding" value={childrenFree} min={0} max={4} onChange={setChildrenFree} />
+                <Counter
+                  label="Children (add-on)" sub={`Age 5–11 · +${formatTHB(room?.priceChildren||300)}/night each`}
+                  value={childrenAddOn} min={0} max={Math.max(0,(room?.capacity||4) - adults)} onChange={(v) => { setChildrenAddOn(v); setKidAges(arr => { const a = [...arr]; while(a.length<v) a.push(""); return a.slice(0,v); }); }}
+                />
+                {childrenAddOn > 0 && (
+                  <div style={{ paddingTop: 12, paddingBottom: 4 }}>
+                    <label style={SS.label}>Children's ages</label>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {kidAges.map((age, i) => (
+                        <select key={i} value={age} onChange={e => { const a=[...kidAges]; a[i]=e.target.value; setKidAges(a); }} style={{ ...SS.input, width: 90 }}>
+                          <option value="">Age</option>
+                          {[5,6,7,8,9,10,11].map(x => <option key={x} value={x}>{x} yrs</option>)}
+                        </select>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {room?.petAllowed && <>
+                  <Counter label="Pets (free — registered)" sub="Already in resort system" value={petFree} min={0} max={2} onChange={setPetFree} />
+                  <Counter label="Pets (add-on)" sub={`+${formatTHB(room?.petPrice||300)}/night each`} value={petAddOn} min={0} max={2} onChange={setPetAddOn} />
+                </>}
               </div>
 
-              <div className="flex justify-end mt-6">
-                <motion.button
-                  whileHover={{ scale: selectedRoom ? 1.01 : 1 }}
-                  whileTap={{ scale: selectedRoom ? 0.99 : 1 }}
-                  onClick={() => goToStep(3)}
-                  disabled={!selectedRoom}
-                  className={`
-                    px-8 py-3.5 rounded-xl font-medium transition-all duration-300 flex items-center gap-2
-                    ${selectedRoom
-                      ? 'bg-forest-500 text-white hover:bg-forest-600 shadow-lg shadow-forest-500/20'
-                      : 'bg-warm-100 text-warm-400 cursor-not-allowed'
-                    }
-                  `}
-                >
-                  {lang === 'th' ? 'ดำเนินการต่อ' : lang === 'cn' ? '继续' : 'Continue'}
-                  <ArrowRight size={18} />
-                </motion.button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* STEP 3 & 4: Guest Details + Summary */}
-          {(step === 3 || step === 4) && (
-            <motion.div key="step3" {...slideUp} transition={{ duration: 0.3 }}>
-              <div className="grid lg:grid-cols-[1fr_380px] gap-6 lg:gap-10">
-                {/* Left: Form */}
-                <div>
-                  <button
-                    onClick={() => goToStep(2)}
-                    className="inline-flex items-center gap-1.5 text-sm text-warm-500 hover:text-warm-900 transition-colors mb-5 group"
-                  >
-                    <ChevronLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
-                    {lang === 'th' ? 'กลับไปเลือกห้อง' : lang === 'cn' ? '返回选择房间' : 'Back to Rooms'}
-                  </button>
-
-                  <div className="bg-white rounded-2xl shadow-sm border border-warm-200/60 p-5 md:p-6 mb-4">
-                    <h3 className="font-serif text-lg text-warm-900 mb-5 flex items-center gap-2">
-                      <Users size={18} className="text-forest-500" />
-                      {lang === 'th' ? 'จำนวนผู้เข้าพัก' : lang === 'cn' ? '住客信息' : 'Guests'}
-                    </h3>
-
-                    <div className="grid grid-cols-2 gap-6">
-                      <div>
-                        <label className="text-xs text-warm-500 mb-2 block font-sans">
-                          {lang === 'th' ? 'ผู้ใหญ่' : lang === 'cn' ? '成人' : 'Adults'}
-                        </label>
-                        <div className="flex items-center gap-3 bg-warm-50 rounded-xl p-1.5 border border-warm-200/40">
-                          <button
-                            onClick={() => setAdults(Math.max(1, adults - 1))}
-                            className="w-9 h-9 rounded-lg hover:bg-white transition-colors flex items-center justify-center text-warm-600"
-                          >
-                            <Minus size={16} />
-                          </button>
-                          <span className="flex-1 text-center text-lg font-semibold text-warm-900">{adults}</span>
-                          <button
-                            onClick={() => setAdults(Math.min(selectedRoomData?.capacity || 4, adults + 1))}
-                            className="w-9 h-9 rounded-lg hover:bg-white transition-colors flex items-center justify-center text-warm-600"
-                          >
-                            <Plus size={16} />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="text-xs text-warm-500 mb-2 block font-sans">
-                          {lang === 'th' ? 'เด็ก' : lang === 'cn' ? '儿童' : 'Children'}
-                        </label>
-                        <div className="flex items-center gap-3 bg-warm-50 rounded-xl p-1.5 border border-warm-200/40">
-                          <button
-                            onClick={() => { if (kids > 0) { setKids(kids - 1); setKidAges(kidAges.slice(0, -1)); } }}
-                            className="w-9 h-9 rounded-lg hover:bg-white transition-colors flex items-center justify-center text-warm-600"
-                          >
-                            <Minus size={16} />
-                          </button>
-                          <span className="flex-1 text-center text-lg font-semibold text-warm-900">{kids}</span>
-                          <button
-                            onClick={() => { if (kids < (selectedRoomData?.maxKids || 2)) { setKids(kids + 1); setKidAges([...kidAges, null]); } }}
-                            className="w-9 h-9 rounded-lg hover:bg-white transition-colors flex items-center justify-center text-warm-600"
-                          >
-                            <Plus size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {kidAges.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        className="mt-4 pt-4 border-t border-warm-100"
-                      >
-                        <label className="text-xs text-warm-500 mb-2 block font-sans">
-                          {lang === 'th' ? 'อายุของเด็ก' : lang === 'cn' ? '儿童年龄' : "Children's Ages"}
-                        </label>
-                        <div className="flex gap-2">
-                          {kidAges.map((age, i) => (
-                            <select
-                              key={i}
-                              value={age || ""}
-                              onChange={(e) => {
-                                const newAges = [...kidAges];
-                                newAges[i] = e.target.value;
-                                setKidAges(newAges);
-                              }}
-                              className="w-20 bg-warm-50 border border-warm-200/60 rounded-lg px-3 py-2.5 text-sm text-warm-900 outline-none focus:border-forest-500 transition-colors"
-                            >
-                              <option value="">{lang === 'th' ? 'อายุ' : lang === 'cn' ? '年龄' : 'Age'}</option>
-                              {[...Array(12)].map((_, x) => <option key={x} value={x}>{x}</option>)}
-                            </select>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
+              {/* Guest Details */}
+              <div style={{ ...SS.card, padding: 24 }}>
+                <h3 style={{ ...SS.sectionTitle }}>Guest Details</h3>
+                <div style={{ display: "grid", gap: 14 }}>
+                  <div>
+                    <label style={SS.label}>Full Name *</label>
+                    <input style={{ ...SS.input, borderColor: errors.name ? P.red : P.border }} placeholder="e.g. Somchai Jaidee" value={name} onChange={e => { setName(e.target.value); setErrors(er => ({...er,name:undefined})); }} />
+                    {errors.name && <p style={{ fontSize: 12, color: P.red, marginTop: 4 }}>{errors.name}</p>}
                   </div>
-
-                  <div className="bg-white rounded-2xl shadow-sm border border-warm-200/60 p-5 md:p-6">
-                    <h3 className="font-serif text-lg text-warm-900 mb-5 flex items-center gap-2">
-                      <Mail size={18} className="text-forest-500" />
-                      {lang === 'th' ? 'ข้อมูลผู้จอง' : lang === 'cn' ? '预订人信息' : 'Your Details'}
-                    </h3>
-
-                    <div className="space-y-3.5">
-                      <div>
-                        <div className={`
-                          flex items-center gap-3 bg-white border rounded-xl px-4 transition-all duration-300
-                          ${focusedField === 'name' ? 'border-forest-500 shadow-sm shadow-forest-500/10' : 'border-warm-200/60'}
-                          ${touched.name && !guestName ? 'border-red-300' : ''}
-                        `}>
-                          <Users size={16} className="text-warm-400 flex-shrink-0" />
-                          <input
-                            placeholder={lang === 'th' ? 'ชื่อ-นามสกุล *' : lang === 'cn' ? '姓名 *' : 'Full Name *'}
-                            value={guestName}
-                            onFocus={() => setFocusedField('name')}
-                            onBlur={() => { setFocusedField(null); setTouched(p => ({...p, name: true})); }}
-                            onChange={(e) => setGuestName(e.target.value)}
-                            className="flex-1 py-3.5 text-sm text-warm-900 outline-none bg-transparent placeholder:text-warm-300"
-                          />
-                          {guestName && <CheckCircle size={16} className="text-forest-500" />}
-                        </div>
-                        {touched.name && !guestName && (
-                          <p className="text-red-400 text-xs mt-1 ml-1">
-                            {lang === 'th' ? 'กรุณากรอกชื่อ' : lang === 'cn' ? '请输入姓名' : 'Name is required'}
-                          </p>
-                        )}
-                      </div>
-
-                      <div>
-                        <div className={`
-                          flex items-center gap-3 bg-white border rounded-xl px-4 transition-all duration-300
-                          ${focusedField === 'email' ? 'border-forest-500 shadow-sm shadow-forest-500/10' : 'border-warm-200/60'}
-                          ${touched.email && !email ? 'border-red-300' : ''}
-                        `}>
-                          <Mail size={16} className="text-warm-400 flex-shrink-0" />
-                          <input
-                            type="email"
-                            placeholder={lang === 'th' ? 'อีเมล *' : lang === 'cn' ? '邮箱 *' : 'Email *'}
-                            value={email}
-                            onFocus={() => setFocusedField('email')}
-                            onBlur={() => { setFocusedField(null); setTouched(p => ({...p, email: true})); }}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="flex-1 py-3.5 text-sm text-warm-900 outline-none bg-transparent placeholder:text-warm-300"
-                          />
-                          {email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && <CheckCircle size={16} className="text-forest-500" />}
-                        </div>
-                        {touched.email && !email && (
-                          <p className="text-red-400 text-xs mt-1 ml-1">
-                            {lang === 'th' ? 'กรุณากรอกอีเมล' : lang === 'cn' ? '请输入邮箱' : 'Email is required'}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className={`
-                        flex items-center gap-3 bg-white border rounded-xl px-4 transition-all duration-300
-                        ${focusedField === 'phone' ? 'border-forest-500 shadow-sm shadow-forest-500/10' : 'border-warm-200/60'}
-                      `}>
-                        <Phone size={16} className="text-warm-400 flex-shrink-0" />
-                        <input
-                          placeholder={lang === 'th' ? 'เบอร์โทรศัพท์' : lang === 'cn' ? '电话号码' : 'Phone Number'}
-                          value={phone}
-                          onFocus={() => setFocusedField('phone')}
-                          onBlur={() => setFocusedField(null)}
-                          onChange={(e) => setPhone(e.target.value)}
-                          className="flex-1 py-3.5 text-sm text-warm-900 outline-none bg-transparent placeholder:text-warm-300"
-                        />
-                      </div>
-
-                      <div className={`
-                        flex items-start gap-3 bg-white border rounded-xl px-4 transition-all duration-300
-                        ${focusedField === 'requests' ? 'border-forest-500 shadow-sm shadow-forest-500/10' : 'border-warm-200/60'}
-                      `}>
-                        <MessageSquare size={16} className="text-warm-400 flex-shrink-0 mt-4" />
-                        <textarea
-                          placeholder={lang === 'th' ? 'คำขอพิเศษ (เช่น เตียงเสริม, อาหาร)' : lang === 'cn' ? '特殊要求' : 'Special Requests (extra bed, dietary needs...)'}
-                          value={specialRequests}
-                          onFocus={() => setFocusedField('requests')}
-                          onBlur={() => setFocusedField(null)}
-                          onChange={(e) => setSpecialRequests(e.target.value)}
-                          rows={3}
-                          className="flex-1 py-3.5 text-sm text-warm-900 outline-none bg-transparent placeholder:text-warm-300 resize-none"
-                        />
-                      </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                    <div>
+                      <label style={SS.label}>Email *</label>
+                      <input type="email" style={{ ...SS.input, borderColor: errors.email ? P.red : P.border }} placeholder="you@example.com" value={email} onChange={e => { setEmail(e.target.value); setErrors(er => ({...er,email:undefined})); }} />
+                      {errors.email && <p style={{ fontSize: 12, color: P.red, marginTop: 4 }}>{errors.email}</p>}
+                    </div>
+                    <div>
+                      <label style={SS.label}>Phone *</label>
+                      <input type="tel" style={{ ...SS.input, borderColor: errors.phone ? P.red : P.border }} placeholder="08x-xxx-xxxx" value={phone} onChange={e => { setPhone(e.target.value); setErrors(er => ({...er,phone:undefined})); }} />
+                      {errors.phone && <p style={{ fontSize: 12, color: P.red, marginTop: 4 }}>{errors.phone}</p>}
                     </div>
                   </div>
-                </div>
-
-                {/* Right: Summary */}
-                <div className="lg:sticky lg:top-6 self-start">
-                  <div className="bg-white rounded-2xl shadow-sm border border-warm-200/60 p-5 md:p-6">
-                    <h3 className="font-serif text-lg text-warm-900 mb-5 flex items-center gap-2">
-                      <Sparkles size={18} className="text-forest-500" />
-                      {lang === 'th' ? 'สรุปการจอง' : lang === 'cn' ? '预订摘要' : 'Booking Summary'}
-                    </h3>
-
-                    <div className="flex gap-3 mb-5 pb-5 border-b border-warm-100">
-                      <img src={selectedRoomData?.img} className="w-16 h-16 rounded-xl object-cover shadow-sm" alt="" />
-                      <div>
-                        <p className="font-semibold text-warm-900">{lang === 'th' ? selectedRoomData?.nameTh : selectedRoomData?.name}</p>
-                        <div className="flex items-center gap-1.5 text-xs text-warm-500 mt-1">
-                          <CalendarDays size={12} />
-                          <span>{formatDate(checkIn)}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-xs text-warm-500">
-                          <CalendarDays size={12} />
-                          <span>{formatDate(checkOut)}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3 pb-4 border-b border-warm-100">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-warm-600">
-                          {selectedRoomData?.name} × {totalNights} {totalNights > 1
-                            ? (lang === 'th' ? 'คืน' : lang === 'cn' ? '晚' : 'nights')
-                            : (lang === 'th' ? 'คืน' : lang === 'cn' ? '晚' : 'night')}
-                        </span>
-                        <span className="text-warm-900 font-medium">฿{formatPrice((selectedRoomData?.price || 0) * totalNights)}</span>
-                      </div>
-                      {kids > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-warm-600">
-                            {lang === 'th' ? 'ค่าที่นอนเด็ก' : lang === 'cn' ? '儿童加床' : 'Extra Bedding'} ({kids} {lang === 'th' ? 'คน' : lang === 'cn' ? '人' : 'pax'})
-                          </span>
-                          <span className="text-warm-900 font-medium">฿{formatPrice(kids * 300)}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="pt-4 flex justify-between items-center">
-                      <span className="font-semibold text-warm-900">
-                        {lang === 'th' ? 'รวมทั้งสิ้น' : lang === 'cn' ? '总计' : 'Total'}
-                      </span>
-                      <span className="text-2xl font-serif font-bold text-forest-600">฿{formatPrice(totalPrice)}</span>
-                    </div>
-
-                    <motion.button
-                      whileHover={{ scale: guestName && email ? 1.01 : 1 }}
-                      whileTap={{ scale: guestName && email ? 0.99 : 1 }}
-                      onClick={handleConfirm}
-                      disabled={!guestName || !email}
-                      className={`
-                        w-full mt-5 py-3.5 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2
-                        ${guestName && email
-                          ? 'bg-forest-500 text-white hover:bg-forest-600 shadow-lg shadow-forest-500/20'
-                          : 'bg-warm-100 text-warm-400 cursor-not-allowed'
-                        }
-                      `}
-                    >
-                      <ShieldCheck size={18} />
-                      {lang === 'th' ? 'ยืนยันการจอง' : lang === 'cn' ? '确认预订' : 'Confirm Reservation'}
-                    </motion.button>
-
-                    <div className="flex items-center justify-center gap-2 mt-4 text-xs text-warm-400">
-                      <ShieldCheck size={12} />
-                      <span>
-                        {lang === 'th'
-                          ? 'ยกเลิกฟรี 7 วันก่อนเข้าพัก'
-                          : lang === 'cn'
-                          ? '入住前7天可免费取消'
-                          : 'Free cancellation 7 days prior'}
-                      </span>
-                    </div>
+                  <div>
+                    <label style={SS.label}>Special Requests</label>
+                    <textarea style={{ ...SS.input, height: 80, resize: "vertical" }} placeholder="Dietary needs, room preferences, arrival time..." value={detail} onChange={e => setDetail(e.target.value)} />
                   </div>
+                  <SlipUpload file={slip} onChange={setSlip} />
                 </div>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+            </div>
+            <SummarySidebar
+              room={room} checkIn={checkIn} checkOut={checkOut}
+              adults={adults} childrenFree={childrenFree} childrenAddOn={childrenAddOn}
+              petFree={petFree} petAddOn={petAddOn}
+              canConfirm={name && email && phone}
+              onConfirm={handleConfirm}
+            />
+          </div>
+        )}
+      </main>
     </div>
   );
 }
