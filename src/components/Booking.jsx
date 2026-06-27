@@ -259,6 +259,34 @@ const SummarySidebar = ({ room, checkIn, checkOut, adults, childrenFree, childre
           <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 26, fontWeight: 600, color: P.accent }}>{formatTHB(total)}</span>
         </div>
       </div>
+
+      {/* ── Bank Transfer / QR Code ── */}
+      <div style={{ background: P.accentBg, borderRadius: 12, padding: 16, marginBottom: 16, border: `1px solid ${P.border}` }}>
+        <h4 style={{ fontSize: 13, fontWeight: 700, color: P.accent, marginBottom: 10, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+          💳 Bank Transfer
+        </h4>
+        <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+          <img
+            src="/assets/image/Logo-Bank/Bank.jpg"
+            alt="Bank QR"
+            style={{ width: 110, height: 110, borderRadius: 10, objectFit: "cover", flexShrink: 0, boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
+          />
+          <div style={{ fontSize: 12, lineHeight: 1.7, color: P.textMid }}>
+            <div style={{ fontWeight: 600, color: P.text, fontSize: 13 }}>ธนาคารกสิกรไทย</div>
+            <div>Kasikorn Bank</div>
+            <div style={{ fontWeight: 600, color: P.accent, fontSize: 15, marginTop: 4 }}>
+              123-4-56789-0
+            </div>
+            <div style={{ fontSize: 11, marginTop: 2 }}>
+              <span style={{ color: P.text }}>ชื่อบัญชี / Account:</span> Hey Now Chiang Dao
+            </div>
+          </div>
+        </div>
+        <p style={{ fontSize: 10, color: P.textLight, marginTop: 10, textAlign: "center", borderTop: `1px solid ${P.border}`, paddingTop: 10 }}>
+          สแกน QR Code เพื่อชำระเงิน · Scan to pay
+        </p>
+      </div>
+
       <button onClick={onConfirm} disabled={!canConfirm} style={{ ...SS.btnPrimary, opacity: canConfirm ? 1 : 0.45 }}>
         Confirm Reservation
       </button>
