@@ -20,15 +20,15 @@ const genBooked = () => {
 
 // ── Room Data ─────────────────────────────────────────────────────────
 const ROOMS = [
-  { id:"R001", capacity:1,  price:500,  rooms:50, priceChildren:300, petAllowed:false, nameTH:"ลานกางเต็นท์",   nameEN:"Camping Area",      img:"https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=800&q=80", type:"camping", icon:"🏕️", amenities:["Shared Facilities","Fire Pit","BBQ Area"], desc:"Open-air camping ground surrounded by nature." },
-  { id:"R002", capacity:4,  price:4500, rooms:1,  priceChildren:300, petAllowed:false, nameTH:"บ้านพารวย",       nameEN:"Phruay House",       img:"https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80", type:"house", icon:"🏡", amenities:["Air Conditioning","Kitchen","Parking"], desc:"Spacious 4-guest house with full kitchen and private parking." },
-  { id:"R003", capacity:4,  price:4500, rooms:2,  priceChildren:300, petAllowed:false, nameTH:"บ้านสิริล้านนา", nameEN:"Sirilanna House",     img:"https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=800&q=80", type:"house", icon:"🏡", amenities:["Lanna Décor","Mountain View","2 Bedrooms"], desc:"Traditional Lanna-style home with panoramic mountain views." },
-  { id:"R004", capacity:2,  price:4500, rooms:1,  priceChildren:300, petAllowed:false, nameTH:"บ้านดารามณี",    nameEN:"Daramanee House",    img:"https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=800&q=80", type:"house", icon:"🏡", amenities:["Private Garden","Rain Shower","Hammock"], desc:"Intimate 2-guest retreat with a serene private garden." },
-  { id:"R005", capacity:2,  price:4500, rooms:1,  priceChildren:300, petAllowed:false, nameTH:"บ้านบานชื่น",    nameEN:"Ban Chuen House",    img:"https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&q=80", type:"house", icon:"🏡", amenities:["Tropical Garden","Outdoor Bath","Bamboo Décor"], desc:"A cheerful 2-guest cottage nestled in tropical bamboo gardens." },
-  { id:"R006", capacity:3,  price:3500, rooms:1,  priceChildren:300, petAllowed:false, nameTH:"บ้านลีลาวดี",    nameEN:"Leelawadee House",   img:"https://images.unsplash.com/photo-1599619351208-3e6c839d6828?w=800&q=80", type:"house", icon:"🏡", amenities:["Plumeria Garden","Terrace","Free Breakfast"], desc:"3-guest house surrounded by plumeria blossoms and a sunny terrace." },
-  { id:"R007", capacity:4,  price:6000, rooms:2,  priceChildren:300, petAllowed:false, nameTH:"บ้านแคทรียา",   nameEN:"Katria House",       img:"https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&q=80", type:"villa", icon:"🏠", amenities:["Private Pool","2 Bedrooms","Premium Kitchen"], desc:"Luxury 4-guest villa with private pool and premium finishes." },
-  { id:"R008", capacity:2,  price:1500, rooms:1,  priceChildren:300, petAllowed:false, nameTH:"บ้านบังกะโล",   nameEN:"Bungalow House",     img:"https://images.unsplash.com/photo-1587381420270-3e1a5b9e6904?w=800&q=80", type:"bungalow", icon:"🛖", amenities:["Forest Deck","Outdoor Shower","Cozy Interior"], desc:"Charming teak bungalow set in a peaceful forest setting." },
-  { id:"R009", capacity:2,  price:4500, rooms:1,  priceChildren:300, petAllowed:true,  petPrice:300, nameTH:"บ้านเพรชจรัล",  nameEN:"Petcharan House",    img:"https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=800&q=80", type:"house", icon:"🐾", amenities:["Pet Friendly","Private Garden","Dog Wash Station"], desc:"Our only pet-friendly property with a dedicated dog wash station." },
+  { id:"R001", capacity:1,  price:500,  rooms:50, priceChildren:300, petAllowed:false, nameTH:"ลานกางเต็นท์",   nameEN:"Camping Area",      img:"/assets/image/Rooms/Camping/image1.jpg", type:"camping", icon:"🏕️", amenities:["Shared Facilities","Fire Pit","BBQ Area"], desc:"Open-air camping ground surrounded by nature." },
+  { id:"R002", capacity:4,  price:4500, rooms:1,  priceChildren:300, petAllowed:false, nameTH:"บ้านพารวย",       nameEN:"Phruay House",       img:"/assets/image/Rooms/Phruay/image1.jpg", type:"house", icon:"🏡", amenities:["Air Conditioning","Kitchen","Parking"], desc:"Spacious 4-guest house with full kitchen and private parking." },
+  { id:"R003", capacity:4,  price:4500, rooms:2,  priceChildren:300, petAllowed:false, nameTH:"บ้านสิริล้านนา", nameEN:"Sirilanna House",     img:"/assets/image/Rooms/Sirilanna/image1.jpg", type:"house", icon:"🏡", amenities:["Lanna Décor","Mountain View","2 Bedrooms"], desc:"Traditional Lanna-style home with panoramic mountain views." },
+  { id:"R004", capacity:2,  price:4500, rooms:1,  priceChildren:300, petAllowed:false, nameTH:"บ้านดารามณี",    nameEN:"Daramanee House",    img:"/assets/image/Rooms/Daramanee/image1.jpg", type:"house", icon:"🏡", amenities:["Private Garden","Rain Shower","Hammock"], desc:"Intimate 2-guest retreat with a serene private garden." },
+  { id:"R005", capacity:2,  price:4500, rooms:1,  priceChildren:300, petAllowed:false, nameTH:"บ้านบานชื่น",    nameEN:"Ban Chuen House",    img:"/assets/image/Rooms/Banchuen/image1.jpg", type:"house", icon:"🏡", amenities:["Tropical Garden","Outdoor Bath","Bamboo Décor"], desc:"A cheerful 2-guest cottage nestled in tropical bamboo gardens." },
+  { id:"R006", capacity:3,  price:3500, rooms:1,  priceChildren:300, petAllowed:false, nameTH:"บ้านลีลาวดี",    nameEN:"Leelawadee House",   img:"/assets/image/Rooms/Leelawadee/image1.jpg", type:"house", icon:"🏡", amenities:["Plumeria Garden","Terrace","Free Breakfast"], desc:"3-guest house surrounded by plumeria blossoms and a sunny terrace." },
+  { id:"R007", capacity:4,  price:6000, rooms:2,  priceChildren:300, petAllowed:false, nameTH:"บ้านแคทรียา",   nameEN:"Katria House",       img:"/assets/image/Rooms/Katria/image1.jpg", type:"villa", icon:"🏠", amenities:["Private Pool","2 Bedrooms","Premium Kitchen"], desc:"Luxury 4-guest villa with private pool and premium finishes." },
+  { id:"R008", capacity:2,  price:1500, rooms:1,  priceChildren:300, petAllowed:false, nameTH:"บ้านบังกะโล",   nameEN:"Bungalow House",     img:"/assets/image/Rooms/Bungalow/image1.jpg", type:"bungalow", icon:"🛖", amenities:["Forest Deck","Outdoor Shower","Cozy Interior"], desc:"Charming teak bungalow set in a peaceful forest setting." },
+  { id:"R009", capacity:2,  price:4500, rooms:1,  priceChildren:300, petAllowed:true,  petPrice:300, nameTH:"บ้านเพรชจรัล",  nameEN:"Petcharan House",    img:"/assets/image/Rooms/Daramanee/image1.jpg", type:"house", icon:"🐾", amenities:["Pet Friendly","Private Garden","Dog Wash Station"], desc:"Our only pet-friendly property with a dedicated dog wash station." },
 ].map(r => ({ ...r, bookedDates: genBooked() }));
 
 // ── Palette ───────────────────────────────────────────────────────────
@@ -408,16 +408,6 @@ export default function BookingRoom() {
 
   return (
     <div style={{ background: P.bg, minHeight: "100vh", fontFamily: "'Inter', sans-serif", color: P.text }}>
-      {/* Hero */}
-      <div style={{ position: "relative", height: 260, overflow: "hidden" }}>
-        <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1400&q=80" style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="Resort" />
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg, rgba(30,20,10,0.2) 0%, rgba(10,5,0,0.65) 100%)" }} />
-        <div style={{ position: "relative", zIndex: 1, padding: "50px 40px" }}>
-          <p style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(255,255,255,0.7)", marginBottom: 10 }}>Sanctuary Resort · Chiang Mai</p>
-          <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 50, color: "#FFF", margin: 0, lineHeight: 1.1 }}>Reserve Your <em>Escape</em></h1>
-        </div>
-      </div>
-
       {/* Progress */}
       <div style={{ maxWidth: 960, margin: "0 auto", padding: "28px 20px 0" }}>
         <StepPill current={step} />
